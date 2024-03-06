@@ -28,8 +28,8 @@ document.addEventListener("DOMContentLoaded", function () {
 		   //lag krisike varsler for driftsstans-feil
            const hasCriticalError = printer.Errors.some(
              (error) =>
-               error.includes("{40440}" ||
-               error.includes("{Error fetching errors}")
+               error.includes("{40440}") || error.includes("{Error fetching errors}")
+
            );
            if (hasCriticalError) {
              printerDiv.classList.add("pulsate-error");
