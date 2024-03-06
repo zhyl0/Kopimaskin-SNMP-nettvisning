@@ -18,21 +18,24 @@ document.addEventListener("DOMContentLoaded", function () {
               </div>
             `;
           };
-          // const hasWarning = printer.Errors.some(
-          //   (error) =>
-          //     error.includes("{13300}") ||
-          //     error.includes("{13400}")
-          // );
-          // const hasCriticalError = printer.Errors.some(
-          //   (error) =>
-          //     error.includes("{10033}")
-          // );
-          // if (hasCriticalError) {
-          //   printerDiv.classList.add("pulsate-error");
-          // }
-          // if (hasWarning) {
-          //   printerDiv.classList.add("pulsate-warning");
-          // }
+		  // lag advarsler for små feil
+           const hasWarning = printer.Errors.some(
+             (error) =>
+               error.includes("{13300}") ||
+               error.includes("{13400}") ||
+			   error.includes("{30343}") 
+           );
+		   //lag krisike varsler for driftsstans-feil
+           const hasCriticalError = printer.Errors.some(
+             (error) =>
+               error.includes("{Error fetching errors}")
+           );
+           if (hasCriticalError) {
+             printerDiv.classList.add("pulsate-error");
+           }
+           if (hasWarning) {
+             printerDiv.classList.add("glow-warning");
+           }
 
           // Skipping the second ink level as it is unknown
           const inkLevelsHtml = `
@@ -48,7 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .map(
               (count, index) => `
                   <div class="tray-counter">
-                      <strong class="detail">Tray ${index + 1}:</strong><strong> ${count} Ark</strong>
+                      <strong class="detail">Skuff ${index + 1}:</strong><strong> ${count} Ark</strong>
                   </div>
               `
             )
@@ -59,16 +62,16 @@ document.addEventListener("DOMContentLoaded", function () {
               <h2>${printer.Name} (${printer.Model})</h2>
               <div class="details">
                   <div class="detail"><strong>IP:</strong> ${printer.IP}</div>
-                  <div class="detail"><strong>Serial:</strong> ${printer.Serial || "N/A"}</div>
+                  <div class="detail"><strong>S/N:</strong> ${printer.Serial || "N/A"}</div>
                   <div class="ink-levels">
-                      <strong>Ink Levels:</strong>
+                      <strong>Toner:</strong>
                       ${inkLevelsHtml}
                   </div>
                   <div class="tray-counters">
-                      <strong>Tray Paper Count:</strong>
+                      <strong>Papirmengde:</strong>
                       ${trayCountersHtml}
                   </div>
-                  <div class="detail"><strong>Time:</strong> ${printer.Time}</div>
+                  <div class="detail"><strong>Oppdatert:</strong> ${printer.Time}</div>
                   <ul class="errors-list"><strong>Status:</strong> ${printer.Errors.map(
                     (error) => `<li class="error">${error}</li>`
                   ).join("")}</ul>
