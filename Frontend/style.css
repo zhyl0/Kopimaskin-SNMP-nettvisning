@@ -219,6 +219,8 @@ html {
   100% { background-color: #fff; }
 }
 
-.pulsate-warning {
-  animation: pulsate2 2s infinite;
+.glow-warning {
+    box-shadow: 0 0 15px 5px rgba(255, 165, 0, 0.9); /* Larger blur radius and spread, higher opacity */
 }
+
+
