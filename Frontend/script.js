@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
 				  const backgroundColor = calculateBackgroundColor(parseInt(count));
 				  return `
 					<div class="tray-counter" style="background-color: ${backgroundColor};">
-						<strong class="detail">Skuff ${index + 1}:</strong><strong> ${count} sheets</strong>
+						<strong class="detail">Skuff ${index + 1}:</strong><strong> ${count} ark</strong>
 					</div>
 				`;
 			})
