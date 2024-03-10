@@ -130,9 +130,30 @@ html {
   align-items: center;
 }
 
-.tray-counter strong {
-  margin-right: 10px;
+.tray-counter {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 5px;
+  margin-bottom: 1vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative; /* Added to support absolute positioning of the pseudo-element */
+  overflow: hidden; /* Ensure the overlay does not extend outside the tray-counter */
 }
+
+.tray-counter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.15); /* Semi-transparent black overlay, adjust opacity as needed */
+  z-index: 2;
+}
+
 
 .tray-number {
   color: #333;
@@ -223,4 +244,30 @@ html {
     box-shadow: 0 0 15px 5px rgba(255, 165, 0, 0.9); /* Larger blur radius and spread, higher opacity */
 }
 
+.offline-printer {
+  filter: grayscale(100%) brightness(50%);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+  position: relative;
+  overflow: hidden;
+}
 
+.offline-printer::before,
+.offline-printer::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  right: -25%;
+  bottom: -25%;
+  left: -25%;
+  background: radial-gradient(rgba(255, 255, 255, 0.2) 20%, transparent 20%) 0 0,
+              radial-gradient(rgba(255, 255, 255, 0.2) 20%, transparent 20%) 1px 1px,
+              radial-gradient(rgba(0, 0, 0, 0.3) 20%, transparent 20%) 0 1px,
+              radial-gradient(rgba(0, 0, 0, 0.3) 20%, transparent 20%) 1px 0;
+  background-size: 10px 10px;
+  z-index: 1;
+  mix-blend-mode: multiply;
+}
+
+.offline-printer::after {
+  transform: rotate(60deg);
+}
