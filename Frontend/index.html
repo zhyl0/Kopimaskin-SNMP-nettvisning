@@ -1,17 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
 <head>
-    <meta charset="UTF-8">
-    <meta Cache-Control: max-age=300>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kopimaskin oversikt</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kopimaskin status</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link href="../css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="images/logo.png" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="stylemob.css" media="only screen and (max-width: 768px)">
+  <script src="script.js" defer=""></script>
 </head>
 <body>
-    <div class="dashboard-header">
-        <h1>Kopimaskin oversikt</h1>
+  <a href="index.htm" class="header-link">
+    <header>
+      <h1>Kopimaskin status</h1>
+      <img src="images/company_logo.png" class="header-icon" id="headerIcon" alt="Header Icon">
+    </header>
+  </a>
+
+  <div class="controls">
+    <button id="toggleButton">Vis alle skrivere</button>
+    <div class="search-container">
+      <input type="text" id="searchBox" placeholder="Søk etter skrivere...">
+      <button id="clearButton">✖</button>
     </div>
-    <div id="printerInfo" class="printer-container"></div>
+  </div>
+
+  <div id="no-errors-message" class="no-errors-message">
+    <img src="images/celebrate.gif" alt="Celebrate">
+    <h2>Ingen feil registrert, dette er bra!</h2>
+  </div>
+  <div id="printerInfo" class="printer-container"></div>
+  <div id="printerSummary" class="printer-summary"></div>
 </body>
 </html>
