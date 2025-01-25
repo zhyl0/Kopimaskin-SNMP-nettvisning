@@ -1,136 +1,138 @@
-function calculateBackgroundColor(paperCount) {
-  const maxPaperCount = 550;
-  let color;
-
-  if (paperCount >= maxPaperCount) {
-    color = 'rgb(0, 255, 0)'; // Green
-  } else if (paperCount <= 0) {
-    color = 'rgb(255, 0, 0)'; // Red
-  } else if (paperCount <= 275) {
-    // Transition from red to yellow
-    let green = Math.round((paperCount / 275) * 255);
-    color = `rgb(255, ${green}, 0)`;
-  } else {
-    // Transition from yellow to green
-    let red = Math.round(((maxPaperCount - paperCount) / 275) * 255);
-    color = `rgb(${red}, 255, 0)`;
-  }
-
-  return color;
-}
-
-
 document.addEventListener("DOMContentLoaded", function () {
-  const fetchPrinterData = () => {
-    fetch("printer_data.json")
+  const imageCache = {};
+  let showAllPrinters = false;
+
+  document.getElementById("toggleButton").addEventListener("click", () => {
+    showAllPrinters = !showAllPrinters;
+    document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis kun printere med feil" : "Vis alle skrivere";
+    fetchPrinterData();
+  });
+
+const fetchPrinterData = () => {
+  fetch("printer_data.json")
       .then((response) => response.json())
       .then((printerData) => {
         const container = document.getElementById("printerInfo");
-        container.innerHTML = ''; // Clear existing content before adding new fetched data
+        container.innerHTML = "";
 
+        const printersWithCriticalError = [];
+        const printersWithWarning = [];
+        const printersWithNoError = [];
 
         printerData.forEach((printer) => {
+          const hasWarning = printer.Errors.some(error =>
+            error.includes("Nesten") ||
+            error.includes("Forbred") ||
+            error.includes("Finner ikke:")
+          );
+
+          const hasCriticalError = printer.Errors.some(error =>
+            error.includes("Papirstopp") ||
+            error.includes("Tom:") ||
+            error.includes("stifter") ||
+            error.includes("Fyll på")
+          );
+
           const printerDiv = document.createElement("div");
           printerDiv.className = "printer";
 
-          // Create ink level bars
-          const createInkLevelBar = (color, width) => {
+
+          if (hasCriticalError) {
+            printerDiv.classList.add("pulsate-error");
+            printersWithCriticalError.push(printerDiv);
+          } else if (hasWarning) {
+            printerDiv.classList.add("pulsate-warning");
+            printersWithWarning.push(printerDiv);
+          } else {
+            printersWithNoError.push(printerDiv);
+          }
+
+          const inkLevelsHtml = `
+            <div class="ink-level-bar-container"><div class="ink-level-bar ink-black" style="width: ${printer["Ink Levels"][0]};"></div></div>
+            <div class="ink-level-bar-container"><div class="ink-level-bar ink-cyan" style="width: ${printer["Ink Levels"][2]};"></div></div>
+            <div class="ink-level-bar-container"><div class="ink-level-bar ink-magenta" style="width: ${printer["Ink Levels"][3]};"></div></div>
+            <div class="ink-level-bar-container"><div class="ink-level-bar ink-yellow" style="width: ${printer["Ink Levels"][4]};"></div></div>
+          `;
+
+          const trayCountersHtml = printer["Tray Information"].slice(0, -1).map((count, index) => {
+            let countClass = "";
+            const answer = count == -3 ? "Har" : count;
+            if (answer == 0) {
+              countClass = "empty";
+            } else if (answer < 56) {
+              countClass = "almostempty";
+            }
+
             return `
-              <div class="ink-level-bar-container">
-                  <div class="ink-level-bar ink-${color}" style="width: ${width};"></div>
+              <div class="tray-counter ${countClass}">
+                <strong>Skuff ${index + 1}:</strong> ${answer} Ark
               </div>
             `;
-          };
-		  // lag advarsler for små feil
-           const hasWarning = printer.Errors.some(
-             (error) =>
-               error.includes("{13300}") ||
-               error.includes("{13400}") ||
-			   error.includes("{30343}") 
-           );
-		   //lag krisike varsler for driftsstans-feil
-           const hasCriticalError = printer.Errors.some(
-             (error) =>
-               error.includes("{40440}") || error.includes("{Error fetching errors}")
+          }).join("");
 
-           );
-           if (hasCriticalError) {
-             printerDiv.classList.add("pulsate-error");
-           }
-           if (hasWarning) {
-             printerDiv.classList.add("glow-warning");
-           }
-
-		// Assuming 'printer' is the current object being processed in a loop
-		const hasFetchError = printer.Errors.some(error => error === "Error fetching errors");
-		if (hasFetchError) {
-			const svgHTML = `
-			<div class='vector' style='height: 100%; width: 100%; position: absolute; top: 0; left: 0;'>
-				<svg viewBox='0 0 600 250' preserveAspectRatio='xMidYMid meet' style='height: 100%; width: 100%;'>
-					<line x1='1' y1='1' x2='600' y2='1' id='top' />
-					<line x1='1' y1='1' x2='1' y2='250' />
-					<line x1='1' y1='1' x2='450' y2='250' />
-					<line x1='1' y1='1' x2='175' y2='250' />
-					<path d='M 1,80 a 12,15 45 1,1 37,-26 a 10,12 0 1,1 14,-24 a 25,20 -45 1,1 40,-30' />
-					<path d='M 1,160 a 17,20 45 1,1 75,-52 a 17,20 0 1,1 30,-48 a 30,25 -45 1,1 60,-70' />
-					<path d='M 1,240 a 22,25 45 1,1 113,-78 a 23,26 0 1,1 46,-72 a 35,30 -45 1,1 90,-110' />
-				</svg>
-			</div>`;
-				printerDiv.style.position = 'relative'; // Ensure the printerDiv can contain the absolutely positioned SVG
-				printerDiv.innerHTML += svgHTML; // Append the SVG to the printer's div
-}
-
-
-          // Skipping the second ink level as it is unknown
-          const inkLevelsHtml = `
-            ${createInkLevelBar("black", printer["Ink Levels"][0])}
-            ${createInkLevelBar("cyan", printer["Ink Levels"][2])}
-            ${createInkLevelBar("magenta", printer["Ink Levels"][3])}
-            ${createInkLevelBar("yellow", printer["Ink Levels"][4])}
-          `;
-
-          // Create tray counters
-          const trayCountersHtml = printer["Tray Information"]
-            .slice(0, -1) // Ignore the last tray information
-            .map(
-              (count, index) => {
-				  const backgroundColor = calculateBackgroundColor(parseInt(count));
-				  return `
-					<div class="tray-counter" style="background-color: ${backgroundColor};">
-						<strong class="detail">Skuff ${index + 1}:</strong><strong> ${count} ark</strong>
-					</div>
-				`;
-			})
-			.join("");
+          let imagePath = `images/${printer.Model}.png`;
+          if (printer.Model === "Error fetching model") {
+            imagePath = `images/missing.png`;
+          }
 
           printerDiv.innerHTML = `
-              <div class="printer-icon"></div>
-              <h2>${printer.Name} (${printer.Model})</h2>
-              <div class="details">
-                  <div class="detail"><strong>IP:</strong> ${printer.IP}</div>
-                  <div class="detail"><strong>S/N:</strong> ${printer.Serial || "N/A"}</div>
-                  <div class="ink-levels">
-                      <strong>Toner:</strong>
-                      ${inkLevelsHtml}
-                  </div>
-                  <div class="tray-counters">
-                      <strong>Papirmengde:</strong>
-                      ${trayCountersHtml}
-                  </div>
-                  <div class="detail"><strong>Oppdatert:</strong> ${printer.Time}</div>
-                  <ul class="errors-list"><strong>Status:</strong> ${printer.Errors.map(
-                    (error) => `<li class="error">${error}</li>`
-                  ).join("")}</ul>
-              </div>
+            <div class="printer-icon" style="background-image: url('${imagePath}');"></div>
+            <h2>${printer.Name} (${printer.Model})</h2>
+            <div class="details">
+              <div><strong>IP:</strong> ${printer.IP}</div>
+              <div><strong>S/N:</strong> ${printer.Serial || "N/A"}</div>
+              <div><strong>Tonernivå:</strong>${inkLevelsHtml}</div>
+              <div><strong>Papirmengde:</strong>${trayCountersHtml}</div>
+              <div><strong>Sist oppdatert:</strong> ${printer.Time}</div>
+            </div>
+            <ul class="errors-list">${printer.Errors.map(error => `<li>${error}</li>`).join("")}</ul>
           `;
 
-          container.appendChild(printerDiv);
+          printerDiv.addEventListener("click", () => {
+            printerDiv.classList.toggle("expanded");
+          });
+
+          if (hasCriticalError) {
+            container.appendChild(printerDiv);
+          }
         });
-      })
-      .catch((error) => console.error("Error loading the printer data:", error));
+
+
+        printersWithWarning.forEach(printerDiv => container.appendChild(printerDiv));
+
+        if (printersWithCriticalError.length === 0 && printersWithWarning.length === 0) {
+          showNoIssuesMessage(container);
+        } else {
+
+          hideNoIssuesMessage(container);
+        }
+
+
+        if (showAllPrinters) {
+          printersWithCriticalError.concat(printersWithWarning, printersWithNoError).forEach(printerDiv => container.appendChild(printerDiv));
+        }
+      });
   };
 
-  // Call fetchPrinterData every 10 seconds
-  fetchPrinterData(); // Fetch immediately on load
-  setInterval(fetchPrinterData, 1000); // Then fetch every 10 seconds
+
+  function showNoIssuesMessage(container) {
+    if (!document.querySelector('.no-issues-message')) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'no-issues-message';
+      messageDiv.innerHTML = '✅ Ingen kopimaskiner med feil.'; 
+      container.appendChild(messageDiv);
+    }
+  }
+
+
+  function hideNoIssuesMessage(container) {
+    const messageDiv = container.querySelector('.no-issues-message');
+    if (messageDiv) {
+      container.removeChild(messageDiv);
+    }
+  }
+
+
+  fetchPrinterData();
+  setInterval(fetchPrinterData, 8000);
 });
