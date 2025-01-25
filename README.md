@@ -8,7 +8,7 @@
 
 ---
 
-##Ting du selv må forsyne:
+## Ting du selv må forsyne:
 1. **`credentials.json`**  
    Du trenger å lage en fil kalt `credentials.json`, som må plasseres i samme mappe som Python-backend `RicohReader.py`. Filen må ha følgende innhold:
    ```json
