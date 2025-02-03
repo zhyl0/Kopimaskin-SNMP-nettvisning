@@ -1,445 +1,609 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const container = document.getElementById("printerInfo");
-  const noErrorsMessage = document.getElementById("no-errors-message");
-  const summaryContainer = document.getElementById("printerSummary");
-  const searchBox = document.getElementById("searchBox");
-  const clearButton = document.getElementById("clearButton");
-  const searchContainer = document.querySelector(".search-container");
+:root {
+  --primary-color: linear-gradient(90deg, #e63946, #f77f00);
+  --secondary-color: #f01616;
+  --background-color: #f0f0f0;
+  --text-color: #000;
+  --error-color: #D80000;
+  --warning-color: #FF9900;
+  --white-color: #fff;
+  --ink-black-color: #000;
+  --ink-cyan-color: #00bfff;
+  --ink-magenta-color: #ff00ff;
+  --ink-yellow-color: #ffff00;
+  --border-color: #ddd;
+  --border-light-color: #ccc;
+  --shadow-color: #00000019;
+  --background-light: #eee;
+  --tooltip-bg: rgba(0, 0, 0, 0.8);
+  --tooltip-text: #fff;
+}
 
-  let showAllPrinters = false;
-  const expandedPrinters = new Set();
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+}
 
-  searchContainer.classList.add("hidden");
+header {
+  display: flex;
+  align-items: center;
+  background: var(--primary-color); 
+  color: var(--white-color);
+  padding: 10px;
+  position: relative;
+  border-bottom: 2px solid var(--secondary-color); 
+}
 
-  const criticalErrors = new Set([
-    "Error fetching errors",
-    "Papirstopp",
-    "Tom:",
-    "stifter",
-    "Fyll på",
-    "Deksel åpent",
-    "Empty:",
-    "Cover open",
-    "Replace",
-    "40132",
-    "40133",
-    "40134",
-    "40135",
-    "40010",
-    "40011",
-    "40012",
-    "40013",
-    "40014",
-    "40015",
-    "40300",
-    "40341",
-    "40490",
-    "40800",
-    "40540",
-    "40100",
-    "40241",
-    "340101"
-  ]);
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
 
-  const warningErrors = new Set([
-    "Nesten",
-    "Forbred",
-    "Finner ikke:",
-    "Almost out",
-    "Preparing",
-    "Not found:",
-    "10032",
-    "10072",
-    "10073",
-    "10074",
-    "10075",
-    "30609",
-    "30427",
-    "30722",
-    "30743",
-    "42000",
-    "42001",
-    "42009"
-  ]);
+.header-icon {
+  width: auto;
+  height: 50px;
+  max-height: 100%;
+  margin-left: auto;
+  margin-right: 15px;
+}
 
-  const errorTranslations = new Map([
-    ["Ring service:", "Ring service: "],
-    ["Tomt for papir: magasin", "Tomt for papir i magasin"],
-    ["Finner ikke: magasin", "Finner ikke magasin"],
-    ["Empty:", "Tom:"],
-    ["Cover open", "Deksel åpent"],
-    ["Almost out", "Nesten tom"],
-    ["Not found:", "Finner ikke:"],
-    ["Preparing", "Forbereder"],
-    ["Out of paper", "Tom for papir"],
-    ["brukt toner", "waste toner"],
-    ["skriverkassett", "tonerkasett"],
-    ["Error fetching errors", "Frakoblet?"]
-  ]);
+.printer-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-gap: 1vh;
+  padding: 2vh;
+  grid-auto-flow: dense;
+}
 
-  const translateError = (error) => {
-  let translatedError = error;
-  for (const [from, to] of errorTranslations) {
-    translatedError = translatedError.split(from).join(to);
+.printer-container > * {
+  background-color: var(--white-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow-color);
+  padding: 2vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.printer h2 {
+  line-height: 1.2;
+  margin-bottom: 0.2em;
+  min-height: 2.4em;
+}
+
+.pulsate-error {
+  animation: pulsate 1s infinite;
+  order: -2;
+  transform: translateZ(0);
+  will-change: box-shadow;
+}
+
+.pulsate-warning {
+  animation: pulsate-warning 1s infinite;
+  order: -1;
+  transform: translateZ(0);
+  will-change: box-shadow;
+}
+
+@keyframes pulsate {
+   0%, 100% {
+    box-shadow: 0 0 10px 1px var(--error-color);
   }
-  return translatedError;
-};
+  50% {
+    box-shadow: 0 0 15px 2px var(--error-color);
+  }
+}
 
+@keyframes pulsate-warning {
+   0%, 100% {
+    box-shadow: 0 0 10px 1px var(--warning-color);
+  }
+  50% {
+    box-shadow: 0 0 15px 2px var(--warning-color);
+  }
+}
 
-  const fetchPrinterData = () => {
-    const currentSearchTerm = searchBox.value.toLowerCase();
-    
-    fetch("printer_data.json", { headers: { 'Content-Type': 'application/json; charset=UTF-8' } })
-      .then((response) => response.json())
-      .then((printerData) => {
-        const scrollPosition = window.scrollY;
-        const expandedStates = {};
-        Array.from(container.children).forEach(printer => {
-          const printerName = printer.querySelector('h2').textContent;
-          expandedStates[printerName] = printer.classList.contains('expanded');
-        });
+@keyframes blink {
+   0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
 
-        container.innerHTML = "";
+@keyframes blink-orange {
+  0%, 100% { box-shadow: 0 0 10px 1px var(--warning-color); }
+  50% { box-shadow: 0 0 20px 1px var(--warning-color); }
+}
 
-        const printersWithCriticalError = [];
-        const printersWithWarning = [];
-        const printersWithNoError = [];
+.printer-icon {
+  width: 100px;
+  height: 100px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 0 auto;
+}
 
-        printerData.forEach((printer) => {
-          const hasWarning = printer.Errors.some(error =>
-            Array.from(warningErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-          );
+.ink-level-bar-container {
+  height: 10px;
+  background-color: var(--background-light);
+  border-radius: 5px;
+  margin-bottom: 5px;
+  overflow: visible;
+  position: relative;
+}
 
-          const hasCriticalError = printer.Errors.some(error =>
-            Array.from(criticalErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-          );
+.ink-level-percentage {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  display: none;
+  z-index: 10;
+}
 
-          if (!hasCriticalError && !hasWarning && !showAllPrinters) {
-            return;
-          }
+.ink-level-bar-container:hover .ink-level-percentage {
+  display: block;
+}
 
-          const printerDiv = document.createElement("div");
-          printerDiv.className = "printer";
+.ink-level-bar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+  width: calc(var(--ink-percentage) * 1%);
+  position: relative;
+  cursor: help;
+}
 
-          if (expandedPrinters.has(printer.IP)) {
-            printerDiv.classList.add("expanded");
-          }
+.ink-black {
+  background-color: var(--ink-black-color);
+}
 
-          if (hasCriticalError) {
-            printerDiv.classList.add("pulsate-error");
-            printersWithCriticalError.push(printerDiv);
-          } else if (hasWarning) {
-            printerDiv.classList.add("pulsate-warning");
-            printersWithWarning.push(printerDiv);
-          } else {
-            printersWithNoError.push(printerDiv);
-          }
+.ink-cyan {
+  background-color: var(--ink-cyan-color);
+}
 
-          const inkLevelsHtml = `
-            <div class="ink-level-bar-container">
-              <span class="ink-level-percentage">Sort: ${printer["Ink Levels"][0]}</span>
-              <div class="ink-level-bar ink-black" style="--ink-percentage: ${parseFloat(printer["Ink Levels"][0])}"></div>
-            </div>
-            <div class="ink-level-bar-container">
-              <span class="ink-level-percentage">Cyan: ${printer["Ink Levels"][2]}</span>
-              <div class="ink-level-bar ink-cyan" style="--ink-percentage: ${parseFloat(printer["Ink Levels"][2])}"></div>
-            </div>
-            <div class="ink-level-bar-container">
-              <span class="ink-level-percentage">Magenta: ${printer["Ink Levels"][3]}</span>
-              <div class="ink-level-bar ink-magenta" style="--ink-percentage: ${parseFloat(printer["Ink Levels"][3])}"></div>
-            </div>
-            <div class="ink-level-bar-container">
-              <span class="ink-level-percentage">Gul: ${printer["Ink Levels"][4]}</span>
-              <div class="ink-level-bar ink-yellow" style="--ink-percentage: ${parseFloat(printer["Ink Levels"][4])}"></div>
-            </div>
-          `;
+.ink-magenta {
+  background-color: var(--ink-magenta-color);
+}
 
-          const trayCountersHtml = printer["Tray Information"].slice(0, -1).map((count, index) => {
-            let countClass = "";
-            let answer = count;
-            let showArk = true;
+.ink-yellow {
+  background-color: var(--ink-yellow-color);
+}
 
-            if (count == -3) {
-              answer = "Har";
-            } else if (count == -2) {
-              answer = "Finner ikke magasin";
-              countClass = "almostempty";
-              showArk = false;
-            } else if (answer == 0) {
-              countClass = "empty";
-            } else if (answer < 56) {
-              countClass = "almostempty";
-            }
+.printer-info,
+.printer-serial,
+.toner-section,
+.tray-section {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5em;
+  margin-bottom: 1em;
+}
 
-            return `
-              <div class="tray-counter ${countClass}">
-                <strong>Skuff ${index + 1}:</strong> ${answer} ${showArk ? "ark" : ""}
-              </div>
-            `;
-          }).join("");
+.tray-counter {
+  margin-top: 0.5em;
+  font-weight: normal;
+}
 
-          let imagePath = `images/${printer.Model}.png`;
-          if (printer.Model === "Error fetching model") {
-            imagePath = `images/missing.png`;
-          }
+.last-updated {
+  margin-top: 1em;
+}
 
-          printerDiv.innerHTML = `
-            <div class="printer-icon" style="background-image: url('${imagePath}');"></div>
-            <h2>${printer.Name} (${printer.Model})</h2>
-            <div class="details">
-              <div class="printer-info">
-                <div class="printer-ip-sn">
-                  <div><strong>IP:</strong> <a href="http://${printer.IP}" target="_blank" class="printer-ip">${printer.IP}</a></div>
-                  <div><strong>S/N:</strong> <span class="printer-serial" 
-                    onmouseover="if(!this.dataset.wascopied) this.classList.add('show-tooltip')" 
-                    onmouseout="this.classList.remove('show-tooltip')" 
-                    onclick="this.classList.remove('show-tooltip'); this.dataset.wascopied = 'true'; this.classList.add('copied'); setTimeout(() => { this.classList.remove('copied'); delete this.dataset.wascopied; }, 1000); navigator.clipboard.writeText(this.textContent)">${printer.Serial || "N/A"}</span></div>
-                </div>
-                <div class="toner-section"><strong>Tonernivå:</strong>${inkLevelsHtml}</div>
-                <div class="tray-section"><strong>Papirmengde:</strong>${trayCountersHtml}</div>
-                <div class="updated"><strong>Sist oppdatert:</strong> ${formatDate(printer.Time)}</div>
-              </div>
-            </div>
-            <ul class="errors-list">
-              ${(() => {
-                const errorGroups = {
-                  critical: [],
-                  warning: [],
-                  normal: []
-                };
+.empty {
+  color: var(--error-color);
+}
 
-                printer.Errors.forEach(error => {
-                  const baseError = error.replace(/\s*\{[^\}]+\}\s*$/, '');
-                  const errorCode = (error.match(/\{([^\}]+)\}/) || [])[1] || '';
-                  const errorText = `${translateError(baseError)}${errorCode ? ` {${errorCode}}` : ''}`;
+.almostempty {
+  color: var(--warning-color);
+}
 
-                  if (Array.from(criticalErrors).some(str => error.includes(str))) {
-                    errorGroups.critical.push(errorText);
-                  } else if (Array.from(warningErrors).some(str => error.includes(str))) {
-                    errorGroups.warning.push(errorText);
-                  } else {
-                    errorGroups.normal.push(errorText);
-                  }
-                });
+.error-list {
+  color: var(--error-color);
+  font-size: 0.9rem;
+}
 
-                return [
-                  ...errorGroups.critical.map(error => `<li class="critical-error">${error}</li>`),
-                  ...errorGroups.warning.map(error => `<li class="warning-error">${error}</li>`),
-                  ...errorGroups.normal.map(error => `<li>${error}</li>`)
-                ].join('');
-              })()}
-            </ul>
-          `;
+.errors-list {
+  padding-left: 2vh;
+}
 
-          printerDiv.addEventListener("click", () => {
-            printerDiv.classList.toggle("expanded");
-            if (printerDiv.classList.contains("expanded")) {
-              expandedPrinters.add(printer.IP);
-            } else {
-              expandedPrinters.delete(printer.IP);
-            }
-          });
+.printer-ip, .printer-serial {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  text-decoration: none !important;
+  border: none;
+}
 
-          const wasExpanded = expandedStates[`${printer.Name} (${printer.Model})`];
-          if (wasExpanded) {
-            printerDiv.classList.add("expanded");
-            expandedPrinters.add(printer.IP);
-          }
+.printer-ip:hover, .printer-serial:hover {
+  background-color: var(--background-light);
+}
 
-          if (currentSearchTerm) {
-            const searchableContent = printerDiv.textContent.toLowerCase();
-            if (!searchableContent.includes(currentSearchTerm)) {
-              printerDiv.classList.add("hidden");
-            }
-          }
+.printer-ip:active, .printer-serial:active {
+  background-color: var(--border-light-color);
+}
 
-          container.appendChild(printerDiv);
-        });
+#toggleButton {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 1rem;
+  background-color: var(--secondary-color);
+  color: var(--white-color);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
 
-        window.scrollTo(0, scrollPosition);
+#toggleButton:hover {
+  background-color: #d10404; 
+}
 
-        if (printersWithCriticalError.length === 0 && printersWithWarning.length === 0 && !showAllPrinters) {
-          noErrorsMessage.style.display = "block";
-          document.getElementById("printerSummary").style.display = "none";
-        } else {
-          noErrorsMessage.style.display = "none";
-        }
+.printer-ip {
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+}
 
-        if (showAllPrinters) {
-          printersWithCriticalError.forEach(printer => container.appendChild(printer));
-          printersWithWarning.forEach(printer => container.appendChild(printer));
-          printersWithNoError.forEach(printer => container.appendChild(printer));
-        }
+.printer-ip:hover {
+  color: inherit;
+  text-decoration: none;
+}
 
-        if (showAllPrinters) {
-          const savedSearchTerm = localStorage.getItem("searchTerm");
-          if (savedSearchTerm) {
-            searchBox.value = savedSearchTerm;
-            clearButton.classList.remove("hidden");
-            filterPrinters(savedSearchTerm);
-          }
-        }
+.printer-ip::after {
+  content: "Åpne Web UI";
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 10;
+}
 
-        if (!showAllPrinters && !isMobile()) {
-          generatePrinterSummary(printerData);
-        } else {
-          document.getElementById("printerSummary").style.display = "none";
-        }
-      });
-  };
+.printer-ip:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
 
-  const generatePrinterSummary = (printerData) => {
-    summaryContainer.innerHTML = "";
+.no-errors-message {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--white-color);
+  color: var(--text-color);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow-color);
+  font-size: 1em;
+  z-index: 1000;
+  text-align: center;
+}
 
-    const criticalPrinters = [];
-    const warningPrinters = [];
+.no-errors-message img {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 10px;
+}
 
-    printerData.forEach(printer => {
-      const uniqueErrors = printer.Errors.filter((error, index, self) => {
-        const normalizedError = error.toLowerCase()
-          .replace(/\s*\{[^\}]+\}\s*$/, '')
-          .replace(/\d+$/, '');
-        return self.findIndex(e => 
-          e.toLowerCase()
-            .replace(/\s*\{[^\}]+\}\s*$/, '')
-            .replace(/\d+$/, '') === normalizedError
-        ) === index;
-      });
+.no-errors-message h2 {
+  margin: 0;
+  font-size: 1.5em;
+}
 
-      const hasCriticalError = printer.Errors.some(error => 
-        Array.from(criticalErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-      );
-      const hasWarningError = printer.Errors.some(error => 
-        Array.from(warningErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-      ) && !hasCriticalError;
+.printer-info > div {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
 
-      if (hasCriticalError) {
-        criticalPrinters.push({...printer, SummaryErrors: uniqueErrors});
-      } else if (hasWarningError) {
-        warningPrinters.push({...printer, SummaryErrors: uniqueErrors});
-      }
-    });
+.printer-info > div + div {
+  border-top: 1px solid var(--border-light-color);
+  padding-top: 8px;
+  margin-top: 8px;
+}
 
-    if (criticalPrinters.length > 0 || warningPrinters.length > 0) {
-        summaryContainer.innerHTML = "<h3>Aktive feilmeldinger:</h3>";
-        
-        if (criticalPrinters.length > 0) {
-            const criticalGroup = document.createElement('div');
-            criticalGroup.className = 'error-group critical';
-            criticalGroup.innerHTML = `
-              <ul>${criticalPrinters.map(printer => {
-                const errors = printer.SummaryErrors.filter(error => 
-                  Array.from(criticalErrors).some(str => error.includes(str))
-                ).map(error => translateError(error.replace(/\s*\{[^\}]+\}\s*$/, '')));
-                return `<li><strong>${printer.Name} (${printer.Model}):</strong> <span class="critical-error">${errors.join(", ")}</span></li>`;
-              }).join("")}</ul>
-            `;
-            summaryContainer.appendChild(criticalGroup);
-        }
+.printer-ip-sn a {
+  color: inherit;
+  text-decoration: none;
+}
 
-        if (warningPrinters.length > 0) {
-            const warningGroup = document.createElement('div');
-            warningGroup.className = 'error-group warning';
-            warningGroup.innerHTML = `
-              <ul>${warningPrinters.map(printer => {
-                const errors = printer.SummaryErrors.filter(error => 
-                  Array.from(warningErrors).some(str => error.includes(str))
-                ).map(error => translateError(error.replace(/\s*\{[^\}]+\}\s*$/, '')));
-                return `<li><strong>${printer.Name} (${printer.Model}):</strong> <span class="warning-error">${errors.join(", ")}</span></li>`;
-              }).join("")}</ul>
-            `;
-            summaryContainer.appendChild(warningGroup);
-        }
+.printer-ip-sn a:visited {
+  color: inherit;
+}
 
-        summaryContainer.style.display = "block";
-    } else {
-        summaryContainer.style.display = "none";
-    }
-  };
+.printer-ip-sn a:hover {
+  color: inherit;
+  text-decoration: none;
+}
 
-  const setupEventListeners = () => {
-    document.getElementById("toggleButton").addEventListener("click", () => {
-      const isSummaryView = document.body.classList.contains('summary-view');
-      showAllPrinters = !showAllPrinters;
-      
-      if (isSummaryView) {
-          document.body.classList.toggle('show-all-printers', showAllPrinters);
-          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis oppsummering" : "Vis alle kopimaskiner";
-      } else {
-          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis kun kopimaskiner med feil" : "Vis alle kopimaskiner";
-      }
-      
-      searchContainer.classList.toggle("hidden", !showAllPrinters);
-      if (!showAllPrinters) {
-          searchBox.value = "";
-          clearButton.classList.add("hidden");
-          localStorage.removeItem("searchTerm");
-      }
-      fetchPrinterData();
-    });
+.printer-ip-sn a:active {
+  color: inherit;
+}
 
-    searchBox.addEventListener("input", (event) => {
-      const searchTerm = event.target.value.toLowerCase();
-      filterPrinters(searchTerm);
-      clearButton.classList.toggle("hidden", !searchTerm);
-      if (showAllPrinters) {
-        localStorage.setItem("searchTerm", searchTerm);
-      }
-    });
+.critical-error {
+  color: var(--error-color);
+  font-weight: bold;
+}
 
-    clearButton.addEventListener("click", () => {
-      searchBox.value = "";
-      filterPrinters("");
-      clearButton.classList.add("hidden");
-      localStorage.removeItem("searchTerm");
-    });
-  };
+.warning-error {
+  color: var(--warning-color);
+  font-weight: bold;
+}
 
-  const formatDate = (dateString) => {
-    const parts = dateString.split(', ');
-    const datePart = parts[0].split(' ');
-    const timePart = parts[1];
-    const formattedDateString = `${datePart[2]}-${datePart[1]}-${datePart[0]}T${timePart}`;
-    const date = new Date(formattedDateString);
+.search-container {
+  position: relative;
+  margin: 10px auto;
+  width: calc(100% - 40px);
+  max-width: 400px;
+}
 
-    if (isNaN(date)) return "";
+#searchBox {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 5px;
+  box-sizing: border-box;
+}
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+#clearButton {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--primary-color);
+}
 
-    return `${day}.${month}.${year}, ${hours}:${minutes}`;
-  };
+.hidden {
+  display: none;
+}
 
-  const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+.printer-summary {
+  margin: 0;
+  padding: 2vh;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  text-align: left;
+  overflow: hidden;
+  display: inline-block;
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: break-word;
+  width: fit-content;
+  max-width: calc(100% - 4vh);
+}
 
-  const debounce = (func, wait) => {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  };
+.printer-summary h3 {
+  margin: 0 0 8px 0;
+  padding: 0;
+  font-size: 1.2rem;
+}
 
-  const filterPrinters = debounce((searchTerm) => {
-    const printers = container.children;
-    for (const printer of printers) {
-      const searchableContent = printer.textContent.toLowerCase();
-      printer.classList.toggle("hidden", !searchableContent.includes(searchTerm));
-    }
-    localStorage.setItem("searchTerm", searchTerm);
-  }, 250);
+.printer-summary ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0 0 0 0.5em;
+}
 
-  fetchPrinterData();
-  setInterval(fetchPrinterData, 8000);
+.printer-summary li {
+  margin-bottom: 5px;
+  color: var(--text-color);
+  padding: 0;
+  display: block;
+  width: 100%;
+  font-size: 1.2rem;
+}
 
-  clearButton.classList.toggle("hidden", !searchBox.value);
+.printer-summary .critical-error {
+  color: var(--white-color);
+  font-weight: bold;
+  background-color: var(--error-color);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
 
-  setupEventListeners();
-});
+.printer-summary .warning-error {
+  color: var(--text-color);
+  font-weight: bold;
+  background-color: var(--warning-color);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+.printer-summary .warning-error-container {
+  display: block;
+  animation: blink-orange 1s infinite;
+  margin-bottom: 8px;
+}
+
+.pulsate-error,
+.pulsate-warning,
+.critical-error,
+.warning-error {
+  animation-duration: 1s;
+  animation-timing-function: linear;
+  animation-delay: 0s;
+  animation-iteration-count: infinite;
+}
+
+.error-group {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.error-group.critical {
+  border: 2px solid var(--error-color);
+  animation: pulsate 1s infinite;
+}
+
+.error-group.warning {
+  border: 2px solid var(--warning-color);
+  animation: pulsate-warning 1s infinite;
+  box-shadow: 0 0 10px 1px var(--warning-color);
+}
+
+.summary-view .printer-summary {
+  display: block !important;
+  width: 95%;
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.summary-view .printer-summary h3 {
+  font-size: 1.7rem;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.summary-view .printer-summary li {
+  margin: 0;
+  padding: 15px;
+  font-size: clamp(0.9rem, 1.5vw + 0.2rem, 1.4rem);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.summary-view .error-group {
+  margin: 0;
+  padding: 10px;
+  background-color: var(--background-color);
+}
+
+.summary-view .error-group.critical {
+  margin-bottom: 15px;
+  border: 2px solid var(--error-color);
+  animation: pulsate 1s infinite;
+}
+
+.summary-view .error-group.warning {
+  border: 2px solid var(--warning-color);
+  animation: pulsate-warning 1s infinite;
+}
+
+.summary-view .error-group ul {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.summary-view .error-group li {
+  margin: 0;
+  padding: 2px 15px;
+  line-height: 1;
+  display: block;
+}
+
+.summary-view .printer-container {
+  display: none;
+}
+
+.summary-view.show-all-printers .printer-container {
+  display: grid;
+}
+
+.summary-view.show-all-printers .printer-summary {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .summary-view .printer-summary ul {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-view .printer-summary li {
+    font-size: 1rem;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .summary-view .printer-summary[data-error-count="1"],
+  .summary-view .printer-summary[data-error-count="2"] {
+    font-size: 1.4rem;
+  }
+}
+
+.printer-serial {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 3px;
+  user-select: none;
+  position: relative;
+  text-decoration: none !important;
+  border: none;
+}
+
+.printer-serial::before {
+  content: "Kopier serienummer";
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 9;
+}
+
+.printer-serial.show-tooltip::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.printer-serial::after {
+  content: "Serienummer kopiert";
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.printer-serial.copied::after {
+  opacity: 1;
+  visibility: visible;
+}
