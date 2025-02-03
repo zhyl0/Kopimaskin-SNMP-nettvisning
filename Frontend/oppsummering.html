@@ -1,0 +1,42 @@
+
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kopimaskin oppsummering</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="images/agderfk.png" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="stylemob.css" media="only screen and (max-width: 768px)">
+  <script src="script.js" defer></script>
+</head>
+<body class="summary-view">
+  <a href="/status/" class="header-link">
+    <header>
+      <h1>Kopimaskin oppsummering</h1>
+      <img src="images/Lillesand_vgs.png" class="header-icon" id="headerIcon" alt="Header Icon">
+    </header>
+  </a>
+
+  <div class="controls">
+    <button id="toggleButton">Vis alle kopimaskiner</button>
+    <div class="search-container">
+      <input type="text" id="searchBox" placeholder="Søk etter kopimaskiner...">
+      <button id="clearButton">✖</button>
+    </div>
+  </div>
+
+  <div id="no-errors-message" class="no-errors-message">
+    <img src="images/celebrate.gif" alt="Celebrate">
+    <h2>Ingen feil registrert, så bra!!</h2>
+  </div>
+  <div id="printerInfo" class="printer-container"></div>
+  <div id="printerSummary" class="printer-summary show-summary"></div>
+</body>
+</html>
