@@ -364,9 +364,9 @@ document.addEventListener("DOMContentLoaded", function () {
       
       if (isSummaryView) {
           document.body.classList.toggle('show-all-printers', showAllPrinters);
-          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis oppsummering" : "Vis alle skrivere";
+          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis oppsummering" : "Vis alle kopimaskiner";
       } else {
-          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis kun printere med feil" : "Vis alle skrivere";
+          document.getElementById("toggleButton").textContent = showAllPrinters ? "Vis kun kopimaskiner med feil" : "Vis alle kopimaskiner";
       }
       
       searchContainer.classList.toggle("hidden", !showAllPrinters);
