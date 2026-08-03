@@ -15,10 +15,21 @@
   <script src="script.js" defer=""></script>
 </head>
 <body>
-  <a href="index.htm" class="header-link">
+  <button
+    id="notificationToggle"
+    class="notification-toggle"
+    type="button"
+    aria-pressed="false"
+    title="Varsling er av"
+  >
+    <span id="notificationIcon" aria-hidden="true">🔕</span>
+    <span id="notificationText" class="notification-label">Varsling av</span>
+  </button>
+
+  <a href="/" class="header-link">
     <header>
       <h1>Kopimaskin status</h1>
-      <img src="images/bedrift_banner.png" class="header-icon" id="headerIcon" alt="Header Icon">
+      <img src="images/bedrifts_banner.png" class="header-icon" id="headerIcon" alt="Header Icon">
     </header>
   </a>
 
@@ -32,9 +43,10 @@
 
   <div id="no-errors-message" class="no-errors-message" style="display: none;">
     <img src="images/celebrate.gif" alt="Celebrate">
-    <h2>Ingen feil registrert, dette er bra!</h2>
+    <h1>Ingen feil registrert, dette er bra!</h1>
   </div>
   <div id="printerInfo" class="printer-container"></div>
   <div id="printerSummary" class="printer-summary"></div>
+  <button id="darkModeToggle" title="Bytt dark mode">🌙</button>
 </body>
 </html>
