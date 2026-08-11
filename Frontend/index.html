@@ -17,6 +17,8 @@
   <script src="script.js" defer=""></script>
 </head>
 <body>
+<div class="top-left-controls">
+
   <button
     id="notificationToggle"
     class="notification-toggle"
@@ -27,9 +29,16 @@
     <span id="notificationIcon" aria-hidden="true">🔕</span>
     <span id="notificationText" class="notification-label">Varsling av</span>
   </button>
-<button id="installAppButton" hidden>
+
+  <button
+    id="installAppButton"
+    class="install-app-button"
+    type="button"
+  >
     📲 Installer app
-</button>
+  </button>
+
+</div>
   <a href="/" class="header-link">
     <header>
       <h1>Kopimaskin status</h1>
