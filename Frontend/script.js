@@ -9,6 +9,50 @@ document.addEventListener("DOMContentLoaded", function () {
   let showAllPrinters = false;
   const expandedPrinters = new Set();
 
+const installAppButton = document.getElementById("installAppButton");
+let deferredInstallPrompt = null;
+
+const isRunningAsApp =
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true;
+
+if (isRunningAsApp && installAppButton) {
+  installAppButton.hidden = true;
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+
+  deferredInstallPrompt = event;
+
+  if (installAppButton) {
+    installAppButton.hidden = false;
+  }
+});
+
+if (installAppButton) {
+  installAppButton.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+
+    deferredInstallPrompt.prompt();
+
+    const result = await deferredInstallPrompt.userChoice;
+    console.log("PWA installasjon:", result.outcome);
+
+    deferredInstallPrompt = null;
+    installAppButton.hidden = true;
+  });
+}
+
+window.addEventListener("appinstalled", () => {
+  console.log("Printerstatus er installert som app.");
+
+  deferredInstallPrompt = null;
+
+  if (installAppButton) {
+    installAppButton.hidden = true;
+  }
+});
 
   const notificationToggle = document.getElementById("notificationToggle");
   const notificationIcon = document.getElementById("notificationIcon");
