@@ -703,3 +703,31 @@ body.dark-mode {
     display: none;
   }
 }
+.install-app-button {
+  position: fixed;
+  top: 10px;
+  left: 155px;
+  z-index: 1200;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 8px 11px;
+
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+
+  background: #2563eb;
+  color: white;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.install-app-button:hover {
+  filter: brightness(1.08);
+}
