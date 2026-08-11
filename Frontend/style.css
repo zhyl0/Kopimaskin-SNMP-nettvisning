@@ -731,3 +731,14 @@ body.dark-mode {
 .install-app-button:hover {
   filter: brightness(1.08);
 }
+
+.top-left-controls {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1200;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
