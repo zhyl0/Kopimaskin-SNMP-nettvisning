@@ -652,10 +652,6 @@ body.dark-mode {
 
 /* Varslingsknapp øverst til venstre */
 .notification-toggle {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 1200;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -694,8 +690,6 @@ body.dark-mode {
 
 @media (max-width: 768px) {
   .notification-toggle {
-    top: 6px;
-    left: 6px;
     padding: 6px 8px;
   }
 
@@ -704,15 +698,9 @@ body.dark-mode {
   }
 }
 .install-app-button {
-  position: fixed;
-  top: 10px;
-  left: 155px;
-  z-index: 1200;
-
   display: inline-flex;
   align-items: center;
   gap: 7px;
-
   padding: 8px 11px;
 
   border: 1px solid rgba(255, 255, 255, 0.45);
