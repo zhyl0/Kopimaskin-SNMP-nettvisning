@@ -2,6 +2,7 @@ import threading
 import time
 import pickle
 import json
+import sys
 import os
 import subprocess
 import tempfile
@@ -54,7 +55,13 @@ def fetch_and_export_printers(printers, model_OID, ink_levels_base_OID, tray_cur
 
         # SNMP fetch errors
         try:
-            errors = [item[1].decode('utf-8') for item in walk(printer['IP'], 'public', error_base_OID)]
+            errors = []
+            for item in walk(printer['IP'], 'public', error_base_OID):
+                try:
+                    errors.append(item[1].decode('utf-8'))
+                except UnicodeDecodeError:
+                    errors.append(item[1].decode('latin-1'))
+
             printer_info["Errors"] = errors
         except Exception as e:
             printer_info["Errors"] = ["Error fetching errors"]
@@ -211,6 +218,15 @@ def control_panel():
             print("Invalid choice, please select 1, 2, or 3.")
 
 if __name__ == "__main__":
-# Accessing the password (assuming the JSON structure includes a "password" field)
     start_continuous_thread(printers_file, run_interval)
-    control_panel()
+
+    if sys.stdin.isatty():
+        # Interaktiv terminal/SSH: vis kontrollpanelet
+        control_panel()
+    else:
+        # Headless/autostart/systemd: hold hovedprosessen i live
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            stop_event.set()
