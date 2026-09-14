@@ -8,38 +8,47 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link href="../css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="css2" rel="stylesheet">
   <link rel="icon" href="images/logo.png" type="image/x-icon">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="stylemob.css" media="only screen and (max-width: 768px)">
   <link rel="manifest" href="images/site.webmanifest">
   <meta name="theme-color" content="#222222">
-  <script src="script.js" defer=""></script>
+  <script src="script.js" defer></script>
+  <script src="stats.js" defer></script>
 </head>
 <body>
-<div class="top-left-controls">
+  <div class="top-left-controls">
+    <button
+      id="notificationToggle"
+      class="notification-toggle"
+      type="button"
+      aria-pressed="false"
+      title="Varsling er av"
+    >
+      <span id="notificationIcon" aria-hidden="true">🔕</span>
+      <span id="notificationText" class="notification-label">Varsling av</span>
+    </button>
 
-  <button
-    id="notificationToggle"
-    class="notification-toggle"
-    type="button"
-    aria-pressed="false"
-    title="Varsling er av"
-  >
-    <span id="notificationIcon" aria-hidden="true">🔕</span>
-    <span id="notificationText" class="notification-label">Varsling av</span>
-  </button>
+    <button
+      id="installAppButton"
+      class="install-app-button"
+      type="button"
+      hidden
+    >
+      📲 Installer app
+    </button>
 
-  <button
-    id="installAppButton"
-    class="install-app-button"
-    type="button"
-    hidden
-  >
-    📲 Installer app
-  </button>
+    <button
+      id="statsToggleButton"
+      class="stats-toggle-button"
+      type="button"
+      title="Åpne statistikk og hendelseslogg"
+    >
+      📊 Statistikk
+    </button>
+  </div>
 
-</div>
   <a href="/" class="header-link">
     <header>
       <h1>Kopimaskin status</h1>
@@ -47,20 +56,236 @@
     </header>
   </a>
 
-  <div class="controls">
-    <button id="toggleButton">Vis alle kopimaskiner</button>
-    <div class="search-container">
-      <input type="text" id="searchBox" placeholder="Søk etter kopimaskiner...">
-      <button id="clearButton">✖</button>
+  <main id="printerView">
+    <div class="controls">
+      <button id="toggleButton">Vis alle kopimaskiner</button>
+      <div class="search-container">
+        <input type="text" id="searchBox" placeholder="Søk etter kopimaskiner...">
+        <button id="clearButton">✖</button>
+      </div>
     </div>
-  </div>
 
-  <div id="no-errors-message" class="no-errors-message" style="display: none;">
-    <img src="images/celebrate.gif" alt="Celebrate">
-    <h1>Ingen feil registrert, dette er bra!</h1>
-  </div>
-  <div id="printerInfo" class="printer-container"></div>
-  <div id="printerSummary" class="printer-summary"></div>
+    <div id="no-errors-message" class="no-errors-message" style="display: none;">
+      <img src="images/celebrate.gif" alt="Celebrate">
+      <h1>Ingen feil registrert, jippi! På tide å kjøpe flaxlodd..</h1>
+    </div>
+
+    <div id="printerInfo" class="printer-container"></div>
+    <div id="printerSummary" class="printer-summary"></div>
+  </main>
+
+  <main id="statsView" class="stats-dashboard" hidden>
+    <div class="stats-toolbar">
+      <div>
+        <h2>Statistikk og hendelseslogg</h2>
+        <p class="stats-subtitle">Tekniske feil, toner og papir logges separat. Energisparing og vanlige driftsstatuser ignoreres.</p>
+      </div>
+      <div id="statsLastUpdated" class="stats-last-updated"></div>
+    </div>
+
+    <div class="stats-period-selector" role="group" aria-label="Velg periode">
+      <button type="button" data-period="today" class="active">I dag</button>
+      <button type="button" data-period="week">Denne uka</button>
+      <button type="button" data-period="month">Denne måneden</button>
+      <button type="button" data-period="year">I år</button>
+      <button type="button" data-period="all">Alt</button>
+    </div>
+
+    <section class="stats-cards" aria-label="Nøkkeltall for tekniske feil">
+      <article class="stats-card critical-card">
+        <span class="stats-card-label">Nye tekniske feil</span>
+        <strong id="statOpened">–</strong>
+      </article>
+      <article class="stats-card resolved-card">
+        <span class="stats-card-label">Løste tekniske feil</span>
+        <strong id="statResolved">–</strong>
+      </article>
+      <article class="stats-card">
+        <span class="stats-card-label">Kritiske</span>
+        <strong id="statCritical">–</strong>
+      </article>
+      <article class="stats-card warning-card">
+        <span class="stats-card-label">Tekniske warnings</span>
+        <strong id="statWarning">–</strong>
+      </article>
+      <article class="stats-card">
+        <span class="stats-card-label">Andre relevante</span>
+        <strong id="statOther">–</strong>
+      </article>
+      <article class="stats-card">
+        <span class="stats-card-label">Berørte maskiner</span>
+        <strong id="statPrinters">–</strong>
+      </article>
+      <article class="stats-card">
+        <span class="stats-card-label">Gj.sn. løsningstid</span>
+        <strong id="statAvgResolution">–</strong>
+      </article>
+      <article class="stats-card active-card">
+        <span class="stats-card-label">Aktive tekniske</span>
+        <strong id="statActive">–</strong>
+      </article>
+      <article class="stats-card">
+        <span class="stats-card-label">Aktive kritiske</span>
+        <strong id="statActiveCritical">–</strong>
+      </article>
+      <article class="stats-card warning-card">
+        <span class="stats-card-label">Aktive warnings</span>
+        <strong id="statActiveWarning">–</strong>
+      </article>
+    </section>
+
+    <h3 class="stats-section-heading">🧰 Forbruksmateriell</h3>
+    <section class="stats-cards consumable-cards" aria-label="Forbruksmateriell">
+      <article class="stats-card toner-card">
+        <span class="stats-card-label">Tonerbytter</span>
+        <strong id="statTonerReplaced">–</strong>
+      </article>
+      <article class="stats-card toner-card">
+        <span class="stats-card-label">Nye tonervarsler</span>
+        <strong id="statTonerAlerts">–</strong>
+      </article>
+      <article class="stats-card toner-card">
+        <span class="stats-card-label">Aktive tonervarsler</span>
+        <strong id="statActiveToner">–</strong>
+      </article>
+      <article class="stats-card paper-card">
+        <span class="stats-card-label">Papirpåfyllinger</span>
+        <strong id="statPaperRefilled">–</strong>
+      </article>
+      <article class="stats-card paper-card">
+        <span class="stats-card-label">Nye tomme magasin</span>
+        <strong id="statPaperEmpty">–</strong>
+      </article>
+      <article class="stats-card paper-card">
+        <span class="stats-card-label">Aktive tomme magasin</span>
+        <strong id="statActivePaper">–</strong>
+      </article>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>🏆 High-score: flest tekniske feil</h3>
+          <span id="statsPeriodLabel"></span>
+        </div>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Maskin</th>
+                <th>Totalt</th>
+                <th>Kritiske</th>
+                <th>Warnings</th>
+                <th>Andre</th>
+              </tr>
+            </thead>
+            <tbody id="printerLeaderboard"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>🔁 Vanligste tekniske feil</h3>
+        </div>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Feil</th>
+                <th>Antall</th>
+                <th>Gj.sn. tid</th>
+              </tr>
+            </thead>
+            <tbody id="errorLeaderboard"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="stats-grid consumable-grid">
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>🖨 Tonerbytter per maskin</h3>
+        </div>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Maskin</th>
+                <th>Totalt</th>
+                <th>Sort</th>
+                <th>Cyan</th>
+                <th>Magenta</th>
+                <th>Gul</th>
+                <th>Avfall</th>
+              </tr>
+            </thead>
+            <tbody id="tonerLeaderboard"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>📄 Papirpåfyllinger per maskin</h3>
+        </div>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Maskin</th>
+                <th>Påfyllinger</th>
+              </tr>
+            </thead>
+            <tbody id="paperLeaderboard"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="stats-panel active-consumables-panel">
+      <div class="stats-panel-title">
+        <h3>🧃 Aktive forbruksvarsler</h3>
+      </div>
+      <div id="activeConsumableList" class="active-incident-list"></div>
+    </section>
+
+    <section class="stats-grid stats-grid-lower">
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>🐌 Lengste løste hendelse</h3>
+        </div>
+        <div id="longestIncident" class="longest-incident empty-state">Ingen løste hendelser i perioden.</div>
+      </article>
+
+      <article class="stats-panel">
+        <div class="stats-panel-title">
+          <h3>📌 Aktive hendelser</h3>
+        </div>
+        <div id="activeIncidentList" class="active-incident-list"></div>
+      </article>
+    </section>
+
+    <section class="stats-panel events-panel">
+      <div class="stats-panel-title">
+        <h3>🧾 Hendelseslogg</h3>
+        <span id="eventCount"></span>
+      </div>
+      <div id="eventLog" class="event-log"></div>
+    </section>
+  </main>
+
   <button id="darkModeToggle" title="Bytt dark mode">🌙</button>
+
+  <footer class="project-reference">
+    <a href="https://github.com/zhyl0/Kopimaskin-SNMP-nettvisning" target="_blank" rel="noopener noreferrer">
+      Kopimaskin-SNMP-nettvisning · GitHub
+    </a>
+  </footer>
 </body>
 </html>
