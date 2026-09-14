@@ -9,11 +9,15 @@ document.addEventListener("DOMContentLoaded", function () {
   let showAllPrinters = false;
   const expandedPrinters = new Set();
 
+/* --- Installer nettsiden som app / PWA --- */
 const installAppButton = document.getElementById("installAppButton");
 let deferredInstallPrompt = null;
 
 const isRunningAsApp =
   window.matchMedia("(display-mode: standalone)").matches ||
+  window.matchMedia("(display-mode: fullscreen)").matches ||
+  window.matchMedia("(display-mode: minimal-ui)").matches ||
+  window.matchMedia("(display-mode: window-controls-overlay)").matches ||
   window.navigator.standalone === true;
 
 if (isRunningAsApp && installAppButton) {
@@ -54,6 +58,7 @@ window.addEventListener("appinstalled", () => {
   }
 });
 
+  /* --- Varsling ved nye kritiske printerfeil --- */
   const notificationToggle = document.getElementById("notificationToggle");
   const notificationIcon = document.getElementById("notificationIcon");
   const notificationText = document.getElementById("notificationText");
@@ -135,6 +140,57 @@ window.addEventListener("appinstalled", () => {
     "42009"
   ]);
 
+  // Backend og frontend deler samme klassifisering via error_rules.json.
+  // I vanlig printervisning vises toner og papir fortsatt som oransje,
+  // men i historikken er de egne kategorier og teller ikke som tekniske feil.
+  let sharedErrorRules = null;
+
+  const loadSharedErrorRules = async () => {
+    try {
+      const response = await fetch("error_rules.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      sharedErrorRules = await response.json();
+    } catch (error) {
+      sharedErrorRules = null;
+      console.warn("Kunne ikke laste error_rules.json; bruker innebygde fallback-regler:", error);
+    }
+  };
+
+  const parseFrontendError = (error) => {
+    const raw = String(error || "");
+    const match = raw.match(/\{([^{}]+)\}\s*$/);
+    return {
+      code: match ? match[1].trim() : "",
+      message: raw.replace(/\s*\{[^{}]+\}\s*$/, "").trim()
+    };
+  };
+
+  const frontendRuleMatches = (group, parsed) => {
+    if (!group) return false;
+    const message = parsed.message.toLowerCase();
+    const code = parsed.code;
+
+    if (code && (group.codes || []).map(String).includes(code)) return true;
+    if ((group.exact || []).some(value => String(value).toLowerCase() === message)) return true;
+    return (group.contains || []).some(value => message.includes(String(value).toLowerCase()));
+  };
+
+  const classifyFrontendError = (error) => {
+    if (sharedErrorRules) {
+      const parsed = parseFrontendError(error);
+      if (frontendRuleMatches(sharedErrorRules.ignore, parsed)) return null;
+      if (frontendRuleMatches(sharedErrorRules.toner, parsed)) return "warning";
+      if (frontendRuleMatches(sharedErrorRules.paper, parsed)) return "warning";
+      if (frontendRuleMatches(sharedErrorRules.critical, parsed)) return "critical";
+      if (frontendRuleMatches(sharedErrorRules.warning, parsed)) return "warning";
+      return "normal";
+    }
+
+    if (errorContainsKeyword(error, criticalErrors)) return "critical";
+    if (errorContainsKeyword(error, warningErrors)) return "warning";
+    return "normal";
+  };
+
   const errorTranslations = new Map([
     ["Ring service:", "Ring service: "],
     ["Tomt for papir: magasin", "Tomt for papir i magasin"],
@@ -165,7 +221,7 @@ window.addEventListener("appinstalled", () => {
     );
 
   const getCriticalErrors = (printer) =>
-    printer.Errors.filter(error => errorContainsKeyword(error, criticalErrors));
+    printer.Errors.filter(error => classifyFrontendError(error) === "critical");
 
   const updateNotificationButton = () => {
     if (!notificationToggle) return;
@@ -212,7 +268,7 @@ window.addEventListener("appinstalled", () => {
     const playTone = () => {
       const startTime = audioContext.currentTime;
 
-      [660, 880].forEach((frequency, index) => {
+      [660, 880, 440].forEach((frequency, index) => {
         const oscillator = audioContext.createOscillator();
         const gain = audioContext.createGain();
         const toneStart = startTime + index * 0.16;
@@ -221,7 +277,7 @@ window.addEventListener("appinstalled", () => {
         oscillator.type = "sine";
         oscillator.frequency.setValueAtTime(frequency, toneStart);
         gain.gain.setValueAtTime(0.0001, toneStart);
-        gain.gain.exponentialRampToValueAtTime(0.12, toneStart + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.25, toneStart + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
 
         oscillator.connect(gain);
@@ -239,6 +295,28 @@ window.addEventListener("appinstalled", () => {
       playTone();
     }
   };
+
+  /* test med T-tasten  */
+  document.addEventListener("keydown", (event) => {
+    if (event.repeat) return;
+
+    // ignorer url osv
+    const activeElement = document.activeElement;
+    const isTyping =
+      activeElement &&
+      (
+        activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.isContentEditable
+      );
+
+    if (isTyping) return;
+
+    if (event.key.toLowerCase() === "t") {
+      playNotificationSound();
+      console.log("Test av varslingslyd");
+    }
+  });
 
   const showCriticalNotification = (printer, errors) => {
     if (!notificationsEnabled || Notification.permission !== "granted") return;
@@ -339,7 +417,7 @@ window.addEventListener("appinstalled", () => {
     notificationsEnabled = true;
     localStorage.setItem(NOTIFICATION_ENABLED_KEY, "true");
 
-
+    // Oppretter lydkonteksten mens klikket fortsatt regnes som brukerhandling.
     const audioContext = getNotificationAudioContext();
     if (audioContext && audioContext.state === "suspended") {
       audioContext.resume().catch(() => {});
@@ -357,7 +435,7 @@ window.addEventListener("appinstalled", () => {
     updateNotificationButton();
     notificationToggle?.addEventListener("click", toggleNotifications);
 
-
+    // Etter en ny innlasting kan nettleseren kreve én brukerhandling før egen lyd tillates.
     const unlockNotificationAudio = () => {
       if (notificationsEnabled) {
         const audioContext = getNotificationAudioContext();
@@ -395,13 +473,8 @@ window.addEventListener("appinstalled", () => {
         const printersWithNoError = [];
 
         printerData.forEach((printer) => {
-          const hasWarning = printer.Errors.some(error =>
-            Array.from(warningErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-          );
-
-          const hasCriticalError = printer.Errors.some(error =>
-            Array.from(criticalErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-          );
+          const hasWarning = printer.Errors.some(error => classifyFrontendError(error) === "warning");
+          const hasCriticalError = printer.Errors.some(error => classifyFrontendError(error) === "critical");
 
           if (!hasCriticalError && !hasWarning && !showAllPrinters) {
             return;
@@ -502,9 +575,10 @@ window.addEventListener("appinstalled", () => {
                   const errorCode = (error.match(/\{([^\}]+)\}/) || [])[1] || '';
                   const errorText = `${translateError(baseError)}${errorCode ? ` {${errorCode}}` : ''}`;
 
-                  if (Array.from(criticalErrors).some(str => error.includes(str))) {
+                  const classification = classifyFrontendError(error);
+                  if (classification === "critical") {
                     errorGroups.critical.push(errorText);
-                  } else if (Array.from(warningErrors).some(str => error.includes(str))) {
+                  } else if (classification === "warning") {
                     errorGroups.warning.push(errorText);
                   } else {
                     errorGroups.normal.push(errorText);
@@ -595,12 +669,8 @@ window.addEventListener("appinstalled", () => {
         ) === index;
       });
 
-      const hasCriticalError = printer.Errors.some(error => 
-        Array.from(criticalErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-      );
-      const hasWarningError = printer.Errors.some(error => 
-        Array.from(warningErrors).some(str => error.toLowerCase().includes(str.toLowerCase()))
-      ) && !hasCriticalError;
+      const hasCriticalError = printer.Errors.some(error => classifyFrontendError(error) === "critical");
+      const hasWarningError = printer.Errors.some(error => classifyFrontendError(error) === "warning") && !hasCriticalError;
 
       if (hasCriticalError) {
         criticalPrinters.push({...printer, SummaryErrors: uniqueErrors});
@@ -617,8 +687,8 @@ window.addEventListener("appinstalled", () => {
         criticalGroup.className = 'error-group critical';
         criticalGroup.innerHTML = `
           <ul>${criticalPrinters.map(printer => {
-            const errors = printer.SummaryErrors.filter(error => 
-              Array.from(criticalErrors).some(str => error.includes(str))
+            const errors = printer.SummaryErrors.filter(error =>
+              classifyFrontendError(error) === "critical"
             ).map(error => translateError(error.replace(/\s*\{[^\}]+\}\s*$/, '')));
             return `<li><strong>${printer.Name} (${printer.Model}):</strong> <span class="critical-error">${errors.join(", ")}</span></li>`;
           }).join("")}</ul>
@@ -631,8 +701,8 @@ window.addEventListener("appinstalled", () => {
         warningGroup.className = 'error-group warning';
         warningGroup.innerHTML = `
           <ul>${warningPrinters.map(printer => {
-            const errors = printer.SummaryErrors.filter(error => 
-              Array.from(warningErrors).some(str => error.includes(str))
+            const errors = printer.SummaryErrors.filter(error =>
+              classifyFrontendError(error) === "warning"
             ).map(error => translateError(error.replace(/\s*\{[^\}]+\}\s*$/, '')));
             return `<li><strong>${printer.Name} (${printer.Model}):</strong> <span class="warning-error">${errors.join(", ")}</span></li>`;
           }).join("")}</ul>
@@ -727,30 +797,40 @@ window.addEventListener("appinstalled", () => {
 
   initializeNotificationControls();
 
-  fetchPrinterData();
-  setInterval(fetchPrinterData, 8000);
+  const startPrinterPolling = async () => {
+    await loadSharedErrorRules();
+    fetchPrinterData();
+    setInterval(fetchPrinterData, 8000);
+  };
+  startPrinterPolling();
 
   clearButton.classList.toggle("hidden", !searchBox.value);
 
   setupEventListeners();
 
-
+  /* --- Dark mode funksjonalitet --- */
   function setDarkMode(enabled) {
-    if (enabled) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
+    document.body.classList.toggle('dark-mode', Boolean(enabled));
   }
 
-
+  // Sjekk URL-parametere
   const params = new URLSearchParams(window.location.search);
   const darkParam = params.get('darkmode');
+  const darkSeasonParam = params.get('darkseason');
+
+  // Alltid dark mode
   if (darkParam === '1' || darkParam === 'true') {
     setDarkMode(true);
   }
 
+  // Automatisk dark mode i mørk sesong: november, desember og januar
+  else if (darkSeasonParam === '1' || darkSeasonParam === 'true') {
+    const month = new Date().getMonth(); // Januar = 0, november = 10
+    const isDarkSeason = month === 10 || month === 11 || month === 0;
+    setDarkMode(isDarkSeason);
+  }
 
+  // Legg til event listener for dark mode toggle-knapp (må være tilstede i HTML)
   const darkModeToggle = document.getElementById('darkModeToggle');
   if (darkModeToggle) {
     darkModeToggle.addEventListener('click', function() {
