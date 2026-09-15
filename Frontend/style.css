@@ -1174,3 +1174,267 @@ body.dark-mode .toner-card {
 body.dark-mode .paper-card {
   border-left-color: #60a5fa;
 }
+
+/* ============================================================================
+   Fork palette compatibility theme
+   Uses the colour system from MahanBig/Resource-Monitor-Web-UI, while keeping
+   the existing Kopimaskin-SNMP-nettvisning layout and HTML structure.
+   ============================================================================ */
+
+:root {
+  --primary-color: linear-gradient(135deg, #e11d48 0%, #f97316 100%);
+  --secondary-color: #e11d48;
+  --background-color: #f3f4f6;
+  --text-color: #111827;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  --white-color: #ffffff;
+  --ink-black-color: #2d3748;
+  --ink-cyan-color: #06b6d4;
+  --ink-magenta-color: #d946ef;
+  --ink-yellow-color: #eab308;
+  --border-color: #e5e7eb;
+  --border-light-color: #f0f1f3;
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --background-light: #f9fafb;
+  --tooltip-bg: rgba(17, 24, 39, 0.94);
+  --tooltip-text: #f9fafb;
+
+  --fork-bg-surface: #ffffff;
+  --fork-bg-elevated: #f9fafb;
+  --fork-bg-hover: #f3f4f6;
+  --fork-text-secondary: #4b5563;
+  --fork-text-muted: #6b7280;
+  --fork-border-focus: #3b82f6;
+  --fork-status-ok: #10b981;
+  --fork-status-ok-bg: rgba(16, 185, 129, 0.12);
+  --fork-warning-bg: rgba(245, 158, 11, 0.12);
+  --fork-warning-border: rgba(245, 158, 11, 0.40);
+  --fork-critical-bg: rgba(239, 68, 68, 0.14);
+  --fork-critical-border: rgba(239, 68, 68, 0.50);
+  --fork-radius-sm: 6px;
+  --fork-radius-md: 10px;
+  --fork-radius-lg: 16px;
+  --fork-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --fork-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --fork-shadow-glow-critical: 0 0 20px rgba(239, 68, 68, 0.25);
+  --fork-shadow-glow-warning: 0 0 20px rgba(245, 158, 11, 0.20);
+}
+
+body.dark-mode {
+  --primary-color: linear-gradient(135deg, #e11d48 0%, #f97316 100%);
+  --secondary-color: #e11d48;
+  --background-color: #0b0f19;
+  --text-color: #f9fafb;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  --white-color: #111827;
+  --ink-black-color: #9ca3af;
+  --ink-cyan-color: #06b6d4;
+  --ink-magenta-color: #d946ef;
+  --ink-yellow-color: #eab308;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-light-color: rgba(255, 255, 255, 0.04);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --background-light: #1f293d;
+  --tooltip-bg: rgba(249, 250, 251, 0.94);
+  --tooltip-text: #111827;
+
+  --fork-bg-surface: #111827;
+  --fork-bg-elevated: #1f293d;
+  --fork-bg-hover: #0e1c38;
+  --fork-text-secondary: #9ca3af;
+  --fork-text-muted: #6b7280;
+  --fork-border-focus: #3b82f6;
+  --fork-status-ok: #10b981;
+  --fork-status-ok-bg: rgba(16, 185, 129, 0.12);
+  --fork-warning-bg: rgba(245, 158, 11, 0.12);
+  --fork-warning-border: rgba(245, 158, 11, 0.40);
+  --fork-critical-bg: rgba(239, 68, 68, 0.14);
+  --fork-critical-border: rgba(239, 68, 68, 0.50);
+  --fork-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --fork-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.30), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
+  --fork-shadow-glow-critical: 0 0 25px rgba(239, 68, 68, 0.35);
+  --fork-shadow-glow-warning: 0 0 25px rgba(245, 158, 11, 0.25);
+}
+
+body {
+  color: var(--text-color);
+  transition: background-color .25s ease, color .25s ease;
+}
+
+header {
+  background: var(--primary-color);
+  border-bottom-color: var(--secondary-color);
+}
+
+.printer-container > * {
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--fork-shadow-sm);
+}
+
+.printer-info,
+.printer-serial,
+.toner-section,
+.tray-section,
+.card-errors,
+.stats-table th,
+.stats-table td,
+.event-row {
+  border-color: var(--border-color);
+}
+
+.printer-ip:hover,
+.printer-serial:hover,
+.printer-info > div + div {
+  background-color: var(--fork-bg-hover);
+}
+
+#searchBox,
+.stats-period-selector button,
+.stats-card,
+.stats-panel,
+.active-incident-item {
+  background: var(--fork-bg-surface);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+#searchBox:focus {
+  outline: none;
+  border-color: var(--fork-border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .25);
+}
+
+#toggleButton,
+.stats-period-selector button.active {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+#toggleButton:hover,
+.stats-period-selector button.active:hover {
+  filter: brightness(1.06);
+}
+
+.notification-toggle,
+.install-app-button,
+.stats-toggle-button {
+  background: var(--fork-bg-elevated);
+  color: var(--text-color);
+  border-color: var(--border-color);
+  box-shadow: var(--fork-shadow-sm);
+}
+
+.notification-toggle:hover,
+.install-app-button:hover,
+.stats-toggle-button:hover {
+  background: var(--fork-bg-hover);
+  color: var(--text-color);
+  border-color: var(--fork-border-focus);
+  filter: none;
+}
+
+.notification-toggle.enabled {
+  background: var(--fork-status-ok-bg);
+  color: var(--fork-status-ok);
+  border-color: var(--fork-status-ok);
+}
+
+.notification-toggle.permission-denied {
+  background: var(--fork-critical-bg);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+#darkModeToggle {
+  background: var(--fork-bg-elevated);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--fork-shadow-md);
+}
+
+#darkModeToggle:hover {
+  background: var(--fork-bg-hover);
+  border-color: var(--fork-border-focus);
+}
+
+.pulsate-error,
+.error-group.critical {
+  border-color: var(--error-color);
+}
+
+.pulsate-warning,
+.error-group.warning {
+  border-color: var(--warning-color);
+}
+
+.printer-summary .critical-error,
+.severity-critical {
+  background: var(--error-color);
+  color: #fff;
+}
+
+.printer-summary .warning-error,
+.severity-warning {
+  background: var(--warning-color);
+  color: #111827;
+}
+
+.summary-view .error-group,
+.severity-other {
+  background: var(--fork-bg-elevated);
+  color: var(--text-color);
+}
+
+.stats-card,
+.stats-panel {
+  box-shadow: var(--fork-shadow-sm);
+}
+
+.resolved-card {
+  border-left-color: var(--fork-status-ok);
+}
+
+.active-card {
+  border-left-color: #3b82f6;
+}
+
+.toner-card {
+  border-left-color: #d946ef;
+}
+
+.paper-card {
+  border-left-color: #06b6d4;
+}
+
+.severity-toner {
+  background: #d946ef;
+  color: #fff;
+}
+
+.severity-paper {
+  background: #06b6d4;
+  color: #082f49;
+}
+
+.project-reference a,
+body.dark-mode .project-reference a {
+  color: var(--fork-text-muted);
+}
+
+body.dark-mode .printer-container > *,
+body.dark-mode .stats-card,
+body.dark-mode .stats-panel,
+body.dark-mode .stats-period-selector button,
+body.dark-mode .active-incident-item,
+body.dark-mode #searchBox {
+  background-color: var(--fork-bg-surface);
+  color: var(--text-color);
+}
+
+body.dark-mode .toner-section,
+body.dark-mode .tray-section {
+  color: var(--text-color);
+}
