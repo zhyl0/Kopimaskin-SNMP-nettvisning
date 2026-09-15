@@ -736,9 +736,6 @@ Frontend/api/config.php
 
 Importer database-SQL-filen i MySQL/MariaDB.
 
-Ved oppgradering fra tidligere historikkversjon brukes migreringsfilen for aktuell versjon i stedet for å slette databasen.
-
-Historikken bør normalt beholdes.
 
 ---
 
