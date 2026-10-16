@@ -1,5 +1,9 @@
 # Oppgradering til Admin + service-markering
 
+![Visning av service feil](https://moglestu.com/printstatus_images/service_status.png)
+
+![Visning av service feil](https://moglestu.com/printstatus_images/admin_service.png)
+
 Denne guiden gjelder en eksisterende installasjon som allerede har:
 
 - Python/SNMP-backend
