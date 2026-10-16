@@ -1,369 +1,141 @@
-# Utgave av web-grensesnittet for Ricoh resource monitor på Norsk bokmål.
+# Kopimaskin-SNMP-nettvisning
 
-Webbasert status- og historikksystem for Ricoh-kopimaskiner basert på SNMP.
+Webgrensesnitt for overvåking av Ricoh-kopimaskiner via SNMP.
 
-Systemet består av:
+Prosjektet består av en Python-backend som henter status direkte fra kopimaskinene, en nettbasert frontend, samt et valgfritt PHP/MariaDB-oppsett for historikk, statistikk og service-markering.
 
-* en Python-backend som leser data fra kopimaskinene via SNMP
-* opplasting av aktuell status til webserver via SFTP
-* en webfrontend som viser toner, papirskuffer og feilstatus
-* server-side historikklogger med PHP + MySQL/MariaDB
-* statistikk for feil, tonerbytter og papirpåfyllinger
-* PWA-støtte slik at statusvisningen kan installeres som en app
-* varsling i nettleseren ved nye kritiske feil
+## Funksjoner
 
-Løsningen er opprinnelig basert på `Resource-Monitor-Web-UI`, men er kraftig tilpasset for Ricoh-kopimaskiner, norsk språk og sentral overvåking.
-
----
-[Hopp til oppsett-veiledning](#Kort-installasjonsoppsummering)
----
-
-# Funksjoner
-
-## Live status
-
-Frontend viser blant annet:
-
-* modell
-* tonernivå
-* papirnivå i magasiner
-* aktive feil og varsler
-* offline-status
-* kritiske feil
-* dark mode
-* automatisk oppdatering
-
-`printer_data.json` genereres av Python-backend og lastes opp til webserveren omtrent hvert 40. sekund.
-
-Frontend leser filen omtrent hvert 8. sekund.
+- Henter modell, tonernivå, papirmengde og aktive status-/feilmeldinger via SNMP.
+- Viser kritiske feil og warnings visuelt i nettleseren.
+- Skiller tekniske feil fra toner og papir.
+- Tom toner kan behandles som kritisk, mens lav toner behandles som forbruksmateriell.
+- Energisparing og vanlige driftsstatuser kan ignoreres.
+- Skrivebordsvarsler for nye kritiske feil.
+- Historikk over når feil oppstår og når de blir løst.
+- Statistikk for dag, uke, måned, år og hele perioden.
+- Tonerbytter og papirpåfyllinger logges separat fra tekniske feil.
+- Egen admin-side der en aktiv feil kan merkes som **meldt til service**.
+- Service-status vises offentlig som gult SERVICE-sperrebånd på printerkortet.
+- Dark mode, PWA/installasjon som app og egne URL-flagg.
 
 ---
 
-## Hendelseshistorikk
-
-Systemet kan lagre hendelser i MySQL/MariaDB.
-
-Historikken registrerer:
-
-* når en feil oppstår
-* når feilen blir løst
-* hvilken kopimaskin det gjelder
-* feilkode
-* feilmelding
-* alvorlighetsgrad
-* varighet
-
-Samme feil opprettes ikke på nytt ved hver polling.
-
-En feil lagres som én hendelse fra den oppstår til den blir løst.
-
----
-
-# Hendelseskategorier
-
-Hendelser klassifiseres gjennom:
-
-```text
-Frontend/error_rules.json
-```
-
-Systemet bruker følgende hovedkategorier.
-
-## Critical
-
-Faktiske driftsfeil som normalt krever handling.
-
-Eksempler:
-
-* papirstopp
-* deksel åpent
-* servicefeil
-* enkelte utskiftingsmeldinger
-* andre kritiske Ricoh-feilkoder
-
----
-
-## Warning
-
-Tekniske varsler som er relevante, men som ikke nødvendigvis stopper maskinen.
-
-Disse inngår i vanlig feilstatistikk.
-
----
-
-## Toner
-
-Toner behandles separat fra vanlige feil.
-
-Eksempler:
-
-```text
-Lite: svart toner
-Lite: cyan toner
-Lite: magenta toner
-Lite: gul toner
-Tom: cyan toner
-```
-
-Tonerhendelser påvirker derfor ikke vanlig feilstatistikk eller MTTR.
-
-Systemet kan i stedet registrere tonerbytter.
-
----
-
-## Paper
-
-Manglende papir behandles også separat.
-
-Eksempel:
-
-```text
-Tomt for papir: magasin 3
-```
-
-Når meldingen forsvinner igjen registreres hendelsen som at magasinet er fylt på.
-
-Dette teller ikke som en teknisk feil.
-
----
-
-## Ignored
-
-Rutinemessige tilstander lagres ikke som hendelser.
-
-Eksempler:
-
-```text
-Energisparemodus
-Utskrift pågår
-Printing
-Klar
-Ready
-Venter
-Oppvarming
-```
-
----
-
-# Tonerbytte
-
-Systemet forsøker å skille mellom:
-
-```text
-tonervarsel forsvant midlertidig
-```
-
-og:
-
-```text
-tonerkassetten ble faktisk byttet
-```
-
-Dette er nødvendig fordi et tonervarsel kan forsvinne midlertidig dersom en kassett tas ut og settes inn igjen.
-
-Når et tonervarsel forsvinner blir det derfor ikke registrert som tonerbytte med en gang.
-
-Standardlogikken er:
-
-* dersom tonernivået samtidig øker tydelig, må varslet være borte i minst ca. 10 minutter
-* dersom tonernivået ikke kan bekrefte byttet, må varslet være borte i ca. 30 minutter
-* dersom varslet kommer tilbake før dette, fortsetter samme tonerhendelse
-
-Eksempel:
-
-```text
-01.09 – Lite: magenta toner
-14.09 – tonervarsel forsvinner
-14.09 – nivå går fra 10 % til 100 %
-14.09 – varslet er fortsatt borte etter bekreftelsestiden
-
-→ Magenta toner byttet
-```
-
-Dette gjør det mulig å bygge statistikk over faktisk tonerforbruk.
-
----
-
-# Statistikk
-
-Statistikksiden åpnes med:
-
-```text
-?stats=1
-```
-
-Eksempel:
-
-```text
-https://example.com/?stats=1
-```
-
-Tilgjengelige perioder:
-
-* i dag
-* denne uka
-* denne måneden
-* dette året
-* all historikk
-
-Statistikken kan blant annet vise:
-
-* nye tekniske feil
-* løste feil
-* kritiske feil
-* warnings
-* aktive feil
-* gjennomsnittlig løsningstid
-* maskiner med flest hendelser
-* vanligste feil
-* lengste hendelser
-* tonerbytter
-* aktive tonervarsler
-* papirpåfyllinger
-* aktive tomme magasiner
-
----
-
-# Systemarkitektur
-
-En normal installasjon ser slik ut:
+## Arkitektur
 
 ```text
 Ricoh-kopimaskiner
         │
         │ SNMP
         ▼
-Python-backend
-RicohReader.py
+Python / RicohReader.py
         │
-        ├───────────────► printer_data.json
-        │                     │
-        │                     │ SFTP
-        │                     ▼
-        │                Webserver
-        │                     │
-        │                     ▼
-        │                 Frontend
+        ├── printer_data.json ──SFTP──► Webhotel
         │
-        └───────────────► PHP logger API
-                              │
-                              ▼
-                        MySQL/MariaDB
-                              │
-                              ▼
-                       Historikk/statistikk
+        └── samme snapshot ──HTTPS──► process-printers.php
+                                      │
+                                      ▼
+                                  MariaDB
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    ▼                                   ▼
+                Frontend                            /admin/
+          status + statistikk                  service-markering
 ```
+
+Frontend leser den ferske `printer_data.json` direkte for livevisningen. Historikk og service-status ligger i MariaDB.
+
+Dette betyr at flere nettlesere kan ha siden åpen samtidig uten at samme feil blir logget flere ganger.
 
 ---
 
-# Krav
+# Du trenger
 
-Du trenger:
-
-* en maskin som kan kjøre Python kontinuerlig
-* nettverkstilgang til Ricoh-kopimaskinene
-* SNMP aktivert på kopimaskinene
-* Python 3
-* webserver/webhotell
-* SFTP-tilgang
-* PHP 8.1 eller nyere
-* MySQL eller MariaDB
-* HTTPS anbefales
-
-En Raspberry Pi fungerer fint som backend.
+- En maskin som kan kjøre Python og nå skriverne over nettverket, f.eks. Raspberry Pi.
+- Python 3.
+- SNMP aktivert på Ricoh-maskinene.
+- SFTP-tilgang til webhotellet.
+- Et webhotell med:
+  - PHP 8.1 eller nyere
+  - PDO MySQL
+  - MariaDB/MySQL
+  - HTTPS
+- En databasebruker med tilgang til databasen.
+- Kopimaskinene bør helst bruke norsk visningsspråk. Mange engelske feilmeldinger støttes også.
 
 ---
 
-# Python-avhengigheter
+# Mapper
 
-Installer nødvendige pakker fra Backend-mappen:
-
-```bash
-pip install -r requirements.txt
-```
-
-Backend bruker blant annet:
-
-```text
-puresnmp
-paramiko
-tkinter
-```
-
-På Debian/DietPi/Raspberry Pi OS kan Tkinter eventuelt installeres med:
-
-```bash
-sudo apt install python3-tk
-```
-
----
-
-# Backend
-
-Backend ligger i:
+Repoet er i hovedsak delt i:
 
 ```text
 Backend/
+    RicohReader.py
+    requirements.txt
+    Printers.pkl
+    credentials.json        <- skal ikke på GitHub
+
+Frontend/
+    index.html
+    script.js
+    stats.js
+    style.css
+    stylemob.css
+    error_rules.json
+    images/
+    api/
+    admin/
 ```
 
-Hovedfilen er:
-
-```text
-RicohReader.py
-```
-
-Backend leser følgende informasjon via SNMP:
-
-| Data          | OID                          |
-| ------------- | ---------------------------- |
-| Modell        | `.1.3.6.1.2.1.43.5.1.1.16.1` |
-| Tonernivå     | `.1.3.6.1.2.1.43.11.1.1.9.1` |
-| Papirnivå     | `.1.3.6.1.2.1.43.8.2.1.10.1` |
-| Feilmeldinger | `.1.3.6.1.2.1.43.18.1.1.8.1` |
-
-Ricoh kan returnere enkelte norske SNMP-strenger som Latin-1 i stedet for UTF-8.
-
-Backend prøver derfor UTF-8 først og faller tilbake til Latin-1.
-
-Dette gjør at eksempelvis:
-
-```text
-Deksel åpent: høyre deksel
-```
-
-ikke blir lagret som:
-
-```text
-Deksel �pent: h�yre deksel
-```
+Avhengig av release kan SQL- og hjelpefiler ligge i egne `sql/` og `tools/`-mapper.
 
 ---
 
-# Printers.pkl
+# Ny installasjon fra bunnen av
 
-Printerlisten lagres i:
+## 1. Last ned repoet
 
-```text
-Backend/Printers.pkl
+```bash
+git clone https://github.com/zhyl0/Kopimaskin-SNMP-nettvisning.git
+cd Kopimaskin-SNMP-nettvisning
 ```
 
-Hver kopimaskin inneholder blant annet:
-
-```text
-IP
-Name
-Serial
-EID
-Default
-```
-
-Serienummer brukes som stabil ID i historikksystemet når det er tilgjengelig.
+Du kan også laste ned ZIP fra GitHub.
 
 ---
 
-# Kontrollpanel
+## 2. Installer Python-avhengigheter
 
-Når `RicohReader.py` startes får du:
+Gå til backend-mappen:
+
+```bash
+cd Backend
+```
+
+Installer kravene:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+Det anbefales å bruke et virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Backend bruker blant annet SNMP og Paramiko/SFTP.
+
+---
+
+## 3. Konfigurer skriverlisten
+
+`RicohReader.py` bruker `Printers.pkl`.
+
+Når programmet kjøres får du kontrollpanelet:
 
 ```text
 Control Panel:
@@ -372,310 +144,165 @@ Control Panel:
 3. Exit
 ```
 
-## 1 – Change run interval
+Velg `2` for å redigere skriverlisten.
 
-Endrer hvor ofte kopimaskinene leses.
+En printer trenger normalt disse feltene:
 
-Standard:
+- `IP`
+- `Name`
+- `Serial`
+- `EID`
+- `Default`
 
-```text
-40 sekunder
-```
-
----
-
-## 2 – Edit .pkl file
-
-Åpner printerlisten slik at maskiner kan legges til eller endres.
-
----
-
-## 3 – Exit
-
-Stopper backend.
-
----
-
-# credentials.json
-
-Opprett:
-
-```text
-Backend/credentials.json
-```
-
-Denne filen skal ikke legges på GitHub.
+`Serial` anbefales sterkt, fordi historikkloggeren bruker serienummer som stabil identifikator når det finnes.
 
 Eksempel:
 
 ```json
 {
-  "host": "sftp.example.com",
-  "port": 22,
-  "user": "USERNAME",
-  "pass": "PASSWORD",
-  "path": "/www/printstatus/",
-  "logger_url": "https://example.com/api/process-printers.php",
-  "logger_key": "DIN_LANGE_HEMMELIGE_NOKKEL"
+  "IP": "192.0.2.20",
+  "Name": "Kontor 1",
+  "Serial": "EKSEMPEL123",
+  "EID": "",
+  "Default": true
 }
 ```
 
-## Felter
+Ikke legg en produksjons-`Printers.pkl` med interne adresser/serienumre offentlig på GitHub.
 
-### host
+---
 
-SFTP-server.
+# 4. Opprett MariaDB-databasen
 
-### port
+Opprett en MariaDB/MySQL-database hos webhotellet.
 
-Normalt:
+For en helt ny installasjon kan følgende skjema brukes.
 
-```text
-22
+> Har du allerede historikkdatabasen fra en eldre versjon, **ikke kjør dette CREATE-oppsettet over den**. Se `UPGRADE-ADMIN.md`.
+
+```sql
+CREATE TABLE printer_incidents (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    printer_id VARCHAR(160) NOT NULL,
+    printer_name VARCHAR(160) NOT NULL,
+    printer_ip VARCHAR(64) NULL,
+    printer_model VARCHAR(160) NULL,
+
+    severity ENUM(
+        'critical',
+        'warning',
+        'toner',
+        'paper',
+        'other'
+    ) NOT NULL,
+
+    service_status ENUM(
+        'none',
+        'reported'
+    ) NOT NULL DEFAULT 'none',
+
+    service_reported_at DATETIME NULL,
+    service_note VARCHAR(500) NULL,
+    service_reported_by VARCHAR(100) NULL,
+
+    error_code VARCHAR(64) NULL,
+    error_message VARCHAR(500) NOT NULL,
+    fingerprint CHAR(64) NOT NULL,
+
+    opened_at DATETIME NOT NULL,
+    resolved_at DATETIME NULL,
+
+    consumable_color VARCHAR(16) NULL,
+    paper_tray VARCHAR(32) NULL,
+
+    toner_level_opened TINYINT UNSIGNED NULL,
+    toner_level_last TINYINT UNSIGNED NULL,
+    toner_level_resolved TINYINT UNSIGNED NULL,
+
+    resolution_type ENUM(
+        'resolved',
+        'replaced',
+        'refilled'
+    ) NULL,
+
+    replacement_confirmed_by_level TINYINT(1) NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (id),
+    INDEX idx_printer_id (printer_id),
+    INDEX idx_opened_at (opened_at),
+    INDEX idx_resolved_at (resolved_at),
+    INDEX idx_severity (severity),
+    INDEX idx_service_active (service_status, resolved_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE printer_active_errors (
+    printer_id VARCHAR(160) NOT NULL,
+    fingerprint CHAR(64) NOT NULL,
+    incident_id BIGINT UNSIGNED NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    missing_since DATETIME NULL,
+
+    PRIMARY KEY (printer_id, fingerprint),
+    UNIQUE KEY uq_active_incident (incident_id),
+
+    CONSTRAINT fk_active_incident
+        FOREIGN KEY (incident_id)
+        REFERENCES printer_incidents(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE admin_login_attempts (
+    ip_hash CHAR(64) NOT NULL PRIMARY KEY,
+    failure_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    first_failed_at DATETIME NULL,
+    last_failed_at DATETIME NULL,
+    blocked_until DATETIME NULL
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
 ```
 
-### user
+---
 
-SFTP-brukernavn.
+# 5. Last opp frontend til webhotellet
 
-### pass
-
-SFTP-passord.
-
-### path
-
-Mappe hvor `printer_data.json` skal lastes opp.
-
-Eksempel:
+Last innholdet i `Frontend/` til ønsket webmappe, for eksempel:
 
 ```text
 /www/printstatus/
 ```
 
-### logger_url
-
-Full URL til historikkloggeren.
-
-Eksempel:
+Da bør du få noe tilsvarende:
 
 ```text
-https://example.com/api/process-printers.php
+/www/printstatus/
+    index.html
+    script.js
+    stats.js
+    style.css
+    stylemob.css
+    error_rules.json
+    images/
+    api/
+    admin/
 ```
 
-### logger_key
-
-Hemmelig nøkkel som brukes mellom Python-backend og PHP-loggeren.
+`printer_data.json` blir senere oppdatert automatisk fra Python-backend.
 
 ---
 
-# SFTP-opplasting
+# 6. Konfigurer API-et
 
-`printer_data.json` lastes opp atomisk.
-
-Backend laster først opp:
+Lag:
 
 ```text
-printer_data.json.uploading
-```
-
-Deretter blir filen renamet til:
-
-```text
-printer_data.json
-```
-
-Dette reduserer risikoen for at frontend leser en halvferdig JSON-fil mens den lastes opp.
-
----
-
-# Frontend
-
-Frontend ligger i:
-
-```text
-Frontend/
-```
-
-Typiske filer:
-
-```text
-index.html
-script.js
-stats.js
-style.css
-stylemob.css
-error_rules.json
-site.webmanifest
-printer_data.json
-api/
-images/
-```
-
-Last innholdet i denne mappen opp til webserveren.
-
----
-
-# error_rules.json
-
-`error_rules.json` styrer hvordan feilmeldinger blir klassifisert.
-
-Eksempelstruktur:
-
-```json
-{
-  "ignore": {
-    "codes": [
-      "10033"
-    ],
-    "exact": [
-      "Energisparemodus",
-      "Energy saver mode",
-      "Utskrift pågår",
-      "Printing",
-      "Skriver ut",
-      "Kopiering pågår",
-      "Copying",
-      "Klar",
-      "Ready",
-      "Venter",
-      "Waiting",
-      "Oppvarming",
-      "Warming up"
-    ]
-  },
-
-  "toner": {
-    "contains": [
-      "toner",
-      "skriverkassett",
-      "print cartridge"
-    ],
-    "codes": [
-      "10072",
-      "10073",
-      "10074",
-      "10075"
-    ]
-  },
-
-  "paper": {
-    "contains": [
-      "Tomt for papir",
-      "Out of paper",
-      "Fyll på papir",
-      "Load paper"
-    ],
-    "codes": [
-      "13400"
-    ]
-  },
-
-  "critical": {
-    "contains": [
-      "Error fetching errors",
-      "Papirstopp",
-      "Deksel åpent",
-      "Cover open",
-      "Replace",
-      "Trenger flere stifter"
-    ],
-    "codes": [
-      "40440",
-      "40132",
-      "40133",
-      "40134",
-      "40135",
-      "40010",
-      "40011",
-      "40012",
-      "40013",
-      "40014",
-      "40015",
-      "40200",
-      "40201",
-      "40300",
-      "40341",
-      "40490",
-      "40800",
-      "40540",
-      "40100",
-      "40241",
-      "340101"
-    ]
-  },
-
-  "warning": {
-    "contains": [
-      "Forbred",
-      "Finner ikke:",
-      "Preparing",
-      "Not found:",
-      "Lavt niv"
-    ],
-    "codes": [
-      "10032",
-      "30609",
-      "30427",
-      "30722",
-      "30743",
-      "42000",
-      "42001",
-      "42009"
-    ]
-  }
-}
-```
-
-Ricoh-modeller og firmwareversjoner kan rapportere forskjellige koder.
-
-Legg derfor nye kjente koder inn i `error_rules.json` etter hvert som de oppdages.
-
----
-
-# Database
-
-Historikksystemet bruker MySQL/MariaDB.
-
-Databasen inneholder blant annet tabellene:
-
-```text
-printer_incidents
-printer_active_errors
-```
-
-`printer_incidents` lagrer permanente hendelser.
-
-`printer_active_errors` holder styr på hvilke hendelser som fortsatt er aktive.
-
----
-
-# PHP API
-
-API-filene ligger i:
-
-```text
-Frontend/api/
-```
-
-Eksempel:
-
-```text
-bootstrap.php
-config.php
-health.php
-process-printers.php
-stats.php
-events.php
-```
-
----
-
-# config.php
-
-Opprett:
-
-```text
-Frontend/api/config.php
+api/config.php
 ```
 
 Eksempel:
@@ -685,114 +312,108 @@ Eksempel:
 
 return [
     'db' => [
-        'host' => 'database.example.com',
+        'host' => 'DATABASENAVN.mysql.example.no',
         'name' => 'DATABASENAVN',
         'user' => 'DATABASEBRUKER',
         'pass' => 'DATABASEPASSORD',
         'charset' => 'utf8mb4',
     ],
 
-    'logger_key' => 'DIN_LANGE_HEMMELIGE_NOKKEL',
+    'logger_key' => 'DIN_LANGE_TILFELDIGE_HEMMELIGE_NOKKEL',
 ];
 ```
 
-`logger_key` må være identisk med verdien i:
-
-```text
-Backend/credentials.json
-```
-
----
-
-# Generere logger-nøkkel
-
-En tilfeldig nøkkel kan genereres med:
+Generer gjerne logger-nøkkelen slik:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Eksempel:
+Samme nøkkel skal brukes i backendens `credentials.json`.
 
-```text
-xQ4...lang tilfeldig nøkkel...9Yw
-```
-
-Bruk samme nøkkel i:
-
-```text
-Backend/credentials.json
-```
-
-og:
-
-```text
-Frontend/api/config.php
-```
+**`api/config.php` skal ikke legges på GitHub.**
 
 ---
 
-# Databaseoppsett
+# 7. Konfigurer backendens credentials.json
 
-Importer database-SQL-filen i MySQL/MariaDB.
+Lag `Backend/credentials.json`:
 
+```json
+{
+  "host": "sftp.example.com",
+  "port": 22,
+  "user": "SFTP-BRUKER",
+  "pass": "SFTP-PASSORD",
+  "path": "/www/printstatus/",
+  "logger_url": "https://example.com/printstatus/api/process-printers.php",
+  "logger_key": "SAMME_HEMMELIGE_NOKKEL_SOM_I_API_CONFIG"
+}
+```
+
+Feltene betyr:
+
+- `host`: SFTP-server.
+- `port`: normalt `22`.
+- `user` / `pass`: SFTP-innlogging.
+- `path`: mappen som inneholder frontend.
+- `logger_url`: full HTTPS-adresse til `process-printers.php`.
+- `logger_key`: samme hemmelige nøkkel som i `api/config.php`.
+
+**`credentials.json` skal ikke legges på GitHub.**
 
 ---
 
-# Kontrollere API
+# 8. Test API og database
 
 Åpne:
 
 ```text
-https://example.com/api/health.php
+https://example.com/printstatus/api/health.php
 ```
 
-Et fungerende system gir omtrent:
+En fungerende installasjon skal returnere JSON med omtrent:
 
 ```json
 {
   "ok": true,
   "logger_version": 3,
+  "service_version": 1,
   "database": "connected",
   "rules": "loaded",
-  "server_time": "2026-09-14T15:00:00+02:00",
-  "timezone": "Europe/Oslo"
+  "service_tracking": true,
+  "admin_rate_limit": true
 }
 ```
 
-Hvis du får HTTP 500, kontroller:
+Hvis `health.php` gir HTTP 500:
 
-* at `bootstrap.php` finnes
-* at `config.php` finnes
-* databasebruker/passord
-* databasehost
-* PHP-versjon
-* `pdo_mysql`
-* at databasetabellene er opprettet
+- kontroller `api/config.php`
+- kontroller databasehost/bruker/passord
+- kontroller at SQL-tabellene finnes
+- kontroller at PHP har PDO MySQL
 
 ---
 
-# Test logger manuelt
+# 9. Test historikkloggeren
 
-Loggeren kan testes med:
+Du kan teste logger-endepunktet fra en maskin med `curl`:
 
 ```bash
 curl -X POST \
   -H 'X-Logger-Key: DIN_HEMMELIGE_NOKKEL' \
-  https://example.com/api/process-printers.php
+  https://example.com/printstatus/api/process-printers.php
 ```
 
-Når body mangler kan loggeren lese eksisterende `printer_data.json` fra webserveren.
+Når kall uten body støttes, leser loggeren den eksisterende `printer_data.json` fra webhotellet.
 
-Et vellykket kall gir eksempelvis:
+Et vellykket svar vil ligne:
 
 ```json
 {
   "ok": true,
   "logger_version": 3,
   "printers_processed": 7,
-  "raw_error_entries_seen": 11,
-  "ignored_status_entries": 5,
   "incidents_opened": 0,
   "incidents_resolved": 0
 }
@@ -800,183 +421,17 @@ Et vellykket kall gir eksempelvis:
 
 ---
 
-# Deduplisering
+# 10. Start Python-backend
 
-Loggeren oppretter ikke samme feil hvert 40. sekund.
-
-Eksempel:
-
-```text
-15:00 Papirstopp oppstår
-15:00 hendelse opprettes
-
-15:01 samme papirstopp
-→ ingen ny hendelse
-
-15:02 samme papirstopp
-→ ingen ny hendelse
-
-15:05 papirstopp borte
-→ eksisterende hendelse markeres løst
-```
-
----
-
-# Beskyttelse mot falske løsninger
-
-Dersom Python ikke klarer å lese feilmeldinger fra en maskin og får:
-
-```text
-Error fetching errors
-```
-
-vil loggeren ikke automatisk markere alle tidligere feil på maskinen som løst.
-
-Dette beskytter historikken mot falske løsninger ved midlertidige SNMP-problemer.
-
----
-
-# PWA
-
-Frontend kan installeres som en Progressive Web App.
-
-`site.webmanifest` brukes til dette.
-
-Eksempel:
-
-```json
-{
-  "name": "Kopimaskin status",
-  "short_name": "Kopistatus",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone"
-}
-```
-
-Installasjonsknappen vises bare dersom nettleseren tilbyr PWA-installasjon.
-
-Det brukes normalt ikke service worker for live-statusen, fordi `printer_data.json` alltid bør hentes fersk og ikke caches offline.
-
----
-
-# Nettleservarslinger
-
-Frontend kan sende desktop-varslinger ved nye kritiske feil.
-
-Varslinger er:
-
-* av som standard
-* lagret lokalt i nettleseren
-* bare sendt ved nye kritiske hendelser
-* ikke gjentatt hvert 8. sekund for samme feil
-
-Når en feil forsvinner fjernes den fra kjent-listen.
-
-Dersom samme feil senere kommer tilbake kan den varsles på nytt.
-
-Varsellyden består av tre toner.
-
-Trykk:
-
-```text
-T
-```
-
-for å teste lyden når markøren ikke står i et tekstfelt.
-
----
-
-# Dark mode
-
-Dark mode kan slås av/på manuelt.
-
-Den kan også tvinges med:
-
-```text
-?darkmode=1
-```
-
-Sesongmodus:
-
-```text
-?darkseason=1
-```
-
-kan brukes til automatisk dark mode i vintermånedene.
-
-Parametere kan kombineres:
-
-```text
-?darkseason=1&stats=1
-```
-
----
-
-# Statistikkside
-
-Åpne:
-
-```text
-?stats=1
-```
-
-for å vise historikk og statistikk i stedet for normal infoskjerm.
-
-Eksempel:
-
-```text
-https://example.com/?stats=1
-```
-
----
-
-# Filstruktur
-
-Et typisk ferdig oppsett:
-
-```text
-Kopimaskin-SNMP-nettvisning/
-│
-├── Backend/
-│   ├── RicohReader.py
-│   ├── Printers.pkl
-│   ├── credentials.json
-│   └── requirements.txt
-│
-└── Frontend/
-    ├── index.html
-    ├── script.js
-    ├── stats.js
-    ├── style.css
-    ├── stylemob.css
-    ├── site.webmanifest
-    ├── error_rules.json
-    ├── printer_data.json
-    │
-    ├── images/
-    │
-    └── api/
-        ├── bootstrap.php
-        ├── config.php
-        ├── health.php
-        ├── process-printers.php
-        ├── stats.php
-        └── events.php
-```
-
----
-
-# Oppstart
-
-En enkel oppstartsrekkefølge er:
+Fra `Backend/`:
 
 ```bash
-cd Backend
 python3 RicohReader.py
 ```
 
-Når backend fungerer bør du se noe tilsvarende:
+Standard polling-intervall er normalt 40 sekunder.
+
+En vellykket runde skal omtrent vise:
 
 ```text
 Data exported to printer_data.json successfully.
@@ -984,141 +439,388 @@ Uploaded printer_data.json to SFTP server at /www/printstatus/
 Event logger HTTP 200: {...}
 ```
 
+Python-backend:
+
+1. leser alle printere via SNMP
+2. bygger `printer_data.json`
+3. laster filen opp via SFTP
+4. sender samme snapshot til PHP-loggeren
+
+SFTP/livevisning og historikklogger er uavhengige; en midlertidig loggerfeil skal ikke stoppe selve livevisningen.
+
+---
+
+# Feilklassifisering
+
+Reglene ligger i:
+
+```text
+error_rules.json
+```
+
+Hovedgruppene er:
+
+- `ignore`
+- `critical`
+- `warning`
+- `toner`
+- `paper`
+
+Typisk oppsett:
+
+```text
+Energisparemodus         -> ignore
+Papirstopp               -> critical
+Deksel åpent             -> critical
+Tom vanlig toner         -> critical
+Full waste toner         -> critical
+Lav / nesten tom toner   -> toner
+Tomt papirmagasin        -> paper
+```
+
+Frontend og historikklogger bør bruke samme `error_rules.json`.
+
+`critical` må ha prioritet foran den generelle tonerregelen slik at for eksempel:
+
+```text
+Tom: gul toner
+```
+
+ikke blir fanget som vanlig lav-toner-status.
+
+---
+
+# Historikk og statistikk
+
+Åpne:
+
+```text
+https://example.com/printstatus/?stats=1
+```
+
+Her vises blant annet:
+
+- nye og løste tekniske feil
+- aktive kritiske feil
+- warnings
+- gjennomsnittlig løsningstid
+- high-score per printer
+- vanligste feil
+- aktive tonerhendelser
+- tonerbytter
+- papirpåfyllinger
+- hendelseslogg
+
+Lav toner og tomme papirmagasiner behandles separat slik at de ikke ødelegger MTTR/statistikk for faktiske tekniske feil.
+
+---
+
+# Tonerbytte
+
+En lav-toner-hendelse markeres ikke som byttet bare fordi SNMP-varselet mangler i ett snapshot.
+
+Loggeren bruker en bekreftelsesperiode slik at reseating eller midlertidige SNMP-endringer ikke blir registrert som nytt tonerbytte.
+
+Når et tonerbytte bekreftes lagres det som:
+
+```text
+resolution_type = replaced
+```
+
+Papirpåfylling lagres tilsvarende som:
+
+```text
+resolution_type = refilled
+```
+
+---
+
+# Admin og service-markering
+
+Admin ligger på:
+
+```text
+https://example.com/printstatus/admin/
+```
+
+Admin brukes til å merke en **aktiv teknisk hendelse** som:
+
+```text
+🔧 Meldt til service – avventer service
+```
+
+Den opprinnelige feilen beholder severity:
+
+```text
+critical + service_status=reported
+```
+
+En kritisk feil blir altså fortsatt regnet som kritisk selv om den er meldt til service.
+
+Når feilen forsvinner via SNMP blir incidenten løst på vanlig måte, mens serviceinformasjonen beholdes i historikken.
+
+---
+
+## Opprett admin/config.php
+
+Bruk `tools/password-generator.html` fra service/admin-pakken eller releasen.
+
+Generatoren lager et oppsett med:
+
+- PBKDF2-HMAC-SHA256
+- tilfeldig salt
+- 600 000 iterasjoner
+
+Eksempelstruktur:
+
+```php
+<?php
+declare(strict_types=1);
+
+return [
+    'username' => 'admin',
+
+    'password' => [
+        'iterations' => 600000,
+        'salt' => 'BASE64_SALT',
+        'hash' => 'BASE64_HASH',
+    ],
+
+    'session_name' => 'kopistatus_admin',
+    'session_timeout_minutes' => 480,
+
+    'max_failures' => 5,
+    'failure_window_minutes' => 15,
+    'block_minutes' => 15,
+];
+```
+
+`admin/config.php` må ikke committes.
+
+Admin-siden har blant annet:
+
+- CSRF-beskyttelse
+- HttpOnly-cookie
+- SameSite=Strict
+- Secure-cookie over HTTPS
+- regenerering av session-ID ved innlogging
+- rate limiting på feil innlogging
+
+Den offentlige frontend-en har kun **read-only** tilgang til service-status.
+
+---
+
+# SERVICE-markering på nettsiden
+
+Når en hendelse er merket som meldt til service vises den på printerkortet med:
+
+```text
+SERVICE
+🔧 Meldt til service – avventer service
+```
+
+Det brukes gult sperrebånd både på vanlig/stort kort og kompakt visning.
+
+Eventuelle service-notater bør regnes som offentlige, fordi de vises på statusnettsiden.
+
+Ikke skriv personnavn, telefonnumre eller annen sensitiv informasjon i notatet.
+
+---
+
+# URL-flagg
+
+Flere visningsvalg kan styres direkte fra URL-en.
+
+## Statistikk
+
+```text
+?stats=1
+```
+
+## Tving dark mode
+
+```text
+?darkmode=1
+```
+
+## Automatisk dark season
+
+```text
+?darkseason=1
+```
+
+## Skjul lav toner og tomt papir
+
+```text
+?ignoreconsumables=1
+```
+
+Dette siste flagget påvirker kun frontendvisningen.
+
+Det skjuler:
+
+- lav/nesten tom toner
+- tomt papirmagasin
+
+men **ikke**:
+
+- tom toner
+- papirstopp
+- deksel åpent
+- tekniske kritiske feil
+
+Backend og historikklogger fortsetter å logge hendelsene.
+
+Flagg kan kombineres:
+
+```text
+?darkseason=1&ignoreconsumables=1
+```
+
+---
+
+# Skrivebordsvarsler
+
+Varsling er avslått som standard og lagres lokalt i nettleseren.
+
+Når varsling er aktivert blir det sendt varsel ved **nye kritiske feil**.
+
+Samme aktive feil varsles ikke på nytt hvert polling-intervall. Hvis feilen løses og senere kommer tilbake, kan den varsles på nytt.
+
+`T` kan brukes som test av varslingslyden når fokus ikke står i et tekstfelt.
+
+---
+
+# PWA
+
+Nettsiden kan installeres som app i nettlesere som støtter PWA/installasjon av nettsider.
+
+Prosjektet trenger ikke Service Worker for selve livevisningen. Dette er bevisst for å unngå at `printer_data.json` blir liggende stale i cache.
+
+---
+
+# Kjente SNMP-begrensninger
+
+Ricoh-maskiner kan oppføre seg forskjellig mellom modeller og firmware.
+
+Blant annet:
+
+- Papirnivå kan være utdatert mens maskinen er i energisparing.
+- Enkelte papirmagasiner kan rapporteres samlet.
+- Tekststrenger kan bruke ulik encoding.
+- Feilkoder er ofte sikrere enn ren tekstmatching.
+
+Hvis du finner nye koder eller formuleringer bør `error_rules.json` oppdateres.
+
+---
+
+# Sikkerhet / hva som ikke skal på GitHub
+
+Ikke commit produksjonsversjoner av:
+
+```text
+Backend/credentials.json
+Backend/Printers.pkl
+Frontend/api/config.php
+Frontend/admin/config.php
+Frontend/printer_data.json
+```
+
+Disse kan inneholde:
+
+- passord
+- logger-nøkler
+- databaseinformasjon
+- IP-adresser
+- serienumre
+- interne printer-/lokasjonsnavn
+
+Bruk eksempel-/templatefiler i repoet i stedet.
+
+Det anbefales også å bruke HTTPS på hele frontend og admin.
+
+---
+
+# Backup
+
+Før større oppgraderinger bør du ta backup av:
+
+- MariaDB-databasen
+- `api/config.php`
+- `admin/config.php`
+- `credentials.json`
+- `Printers.pkl`
+- eksisterende frontendmappe
+
+Historikken ligger permanent i `printer_incidents`.
+
 ---
 
 # Feilsøking
 
-## `Error fetching errors`
-
-Dette betyr at SNMP-spørringen for feilstatus ikke kunne fullføres.
-
-Backend skriver den faktiske exception-feilen i terminalen.
-
-Feilen skal ikke normalt registreres som at tidligere hendelser er løst.
-
----
-
-## Norske tegn vises som `�`
-
-Ricoh kan returnere SNMP-tekst som Latin-1.
-
-Backend skal bruke:
-
-```python
-try:
-    return value.decode('utf-8')
-except UnicodeDecodeError:
-    return value.decode('latin-1')
-```
-
----
-
-## HTTP 500 fra API
+## `health.php` gir HTTP 500
 
 Kontroller:
 
-```text
-bootstrap.php
-config.php
-PHP-versjon
-PDO
-pdo_mysql
-databaseinnstillinger
-databasetabeller
-```
+1. `api/bootstrap.php` finnes.
+2. `api/config.php` finnes og har gyldig PHP-syntaks.
+3. databasen kan nås.
+4. PDO MySQL er aktivert.
+5. SQL-migreringer er kjørt.
 
-Test:
+---
+
+## Backend sier `Event logger HTTP 500`
+
+Test først:
 
 ```text
 /api/health.php
 ```
 
+Hvis den feiler er problemet på PHP/database-siden, ikke i SFTP-opplastingen.
+
 ---
 
-## Logger returnerer HTTP 200, men ingen nye incidents
+## Samme feil blir opprettet flere ganger
 
-Dette er normalt dersom de samme hendelsene allerede er aktive.
+`printer_active_errors` skal holde styr på hvilke incidents som allerede er aktive.
 
-Eksempel:
+To like snapshots etter hverandre skal normalt gi:
 
 ```json
-{
-  "incidents_opened": 0,
-  "incidents_resolved": 0
-}
+"incidents_opened": 0,
+"incidents_resolved": 0
 ```
 
-betyr at dedupliseringen fungerer.
+på andre kjøring.
 
 ---
 
-## Papirnivå oppdateres ikke
+## En kritisk feil vises på live-siden, men ikke i admin
 
-Noen Ricoh-maskiner rapporterer ikke alltid nye nivåer mens de står i energisparemodus.
+Admin bruker databasen, mens livevisningen bruker `printer_data.json`.
 
-Maskinen kan måtte vekkes før enkelte SNMP-verdier oppdateres.
+Sjekk aktive incidents:
 
----
-
-# Anbefalt produksjonsoppsett
-
-Backend bør kjøre kontinuerlig på en maskin som:
-
-* er på samme nettverk som kopimaskinene
-* har stabil nettverkstilkobling
-* kan nå webserveren via SFTP og HTTPS
-* kan kjøre Python kontinuerlig
-
-Typisk:
-
-```text
-Raspberry Pi
-Linux-server
-VM
-mini-PC
+```sql
+SELECT
+    id,
+    printer_name,
+    severity,
+    error_code,
+    error_message,
+    opened_at,
+    service_status
+FROM printer_incidents
+WHERE resolved_at IS NULL
+ORDER BY opened_at DESC;
 ```
 
----
-
-# Sikkerhet
-
-Anbefalt:
-
-* HTTPS
-* lang tilfeldig `logger_key`
-* `config.php` ikke tilgjengelig som ren tekst
-* databasebruker med begrensede rettigheter
-* ingen credentials i GitHub
-* ingen sensitiv `printer_data.json` i offentlig repo
-
-API-et for innskriving krever `X-Logger-Key`.
-
-Statistikkendepunktene kan være lesbare fra frontend, så ikke lagre sensitive data der som ikke skal vises offentlig.
+En hendelse som ble opprettet før en klassifiseringsregel ble korrigert kan fortsatt ha gammel `severity` i databasen.
 
 ---
 
-# Kort installasjonsoppsummering
+# Opphav
 
-1. Klon repoet.
-2. Installer Python-avhengigheter.
-3. Konfigurer `Printers.pkl`.
-4. Opprett `credentials.json`.
-5. Last `Frontend/` opp til webserver.
-6. Opprett MySQL/MariaDB-database.
-7. Importer database-SQL.
-8. Opprett `api/config.php`.
-9. Bruk samme `logger_key` i Python og PHP.
-10. Kontroller `/api/health.php`.
-11. Start `RicohReader.py`.
-12. Kontroller at SFTP gir vellykket opplasting.
-13. Kontroller at loggeren returnerer HTTP 200.
-14. Åpne normal dashboardvisning.
-15. Åpne `?stats=1` og kontroller historikk/statistikk.
-
----
-
-# Lisens / opphav
-
-Dette prosjektet er en videreutviklet variant av det opprinnelige Ricoh Resource Monitor / Resource-Monitor-Web-UI-prosjektet.
-
-Se repositoryets lisensfiler for gjeldende lisensvilkår.
+Dette repoet er en videreutviklet/forket utgave av Ricoh Resource Monitor / Resource-Monitor-Web-UI, tilpasset norsk webvisning og videre utvidet med blant annet historikk, statistikk, PWA, varsling og serviceadministrasjon.
