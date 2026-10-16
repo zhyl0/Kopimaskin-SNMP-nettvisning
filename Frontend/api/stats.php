@@ -150,6 +150,7 @@ try {
         "SELECT
             id, printer_id, printer_name, printer_model, severity,
             error_message, error_code, opened_at, resolved_at,
+            service_status, service_reported_at, service_note,
             TIMESTAMPDIFF(SECOND, opened_at, resolved_at) AS duration_seconds
          FROM printer_incidents
          WHERE resolved_at IS NOT NULL AND {$resolvedWhere} AND {$errorSeveritySql}
@@ -163,6 +164,7 @@ try {
         "SELECT
             id, printer_id, printer_name, printer_model, severity,
             error_message, error_code, opened_at,
+            service_status, service_reported_at, service_note,
             TIMESTAMPDIFF(SECOND, opened_at, :now) AS duration_seconds
          FROM printer_incidents
          WHERE resolved_at IS NULL AND {$errorSeveritySql}

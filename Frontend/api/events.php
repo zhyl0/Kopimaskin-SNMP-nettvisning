@@ -17,6 +17,7 @@ try {
             id, 'opened' AS event_type, opened_at AS event_at,
             printer_id, printer_name, printer_model, severity,
             error_message, error_code, opened_at, resolved_at,
+            service_status, service_reported_at, service_note,
             consumable_color, paper_tray,
             toner_level_opened, toner_level_last, toner_level_resolved,
             resolution_type, replacement_confirmed_by_level,
@@ -35,6 +36,7 @@ try {
             id, 'resolved' AS event_type, resolved_at AS event_at,
             printer_id, printer_name, printer_model, severity,
             error_message, error_code, opened_at, resolved_at,
+            service_status, service_reported_at, service_note,
             consumable_color, paper_tray,
             toner_level_opened, toner_level_last, toner_level_resolved,
             resolution_type, replacement_confirmed_by_level,
@@ -45,6 +47,27 @@ try {
         LIMIT {$limit}";
     $stmt = $pdo->prepare($resolvedSql);
     $stmt->execute($resolvedParams);
+    $events = array_merge($events, $stmt->fetchAll());
+
+    $serviceParams = [];
+    $serviceWhere = date_where('service_reported_at', $from, $to, $serviceParams, 'service');
+    $serviceSql = "SELECT
+            id, 'service_reported' AS event_type, service_reported_at AS event_at,
+            printer_id, printer_name, printer_model, severity,
+            error_message, error_code, opened_at, resolved_at,
+            service_status, service_reported_at, service_note,
+            consumable_color, paper_tray,
+            toner_level_opened, toner_level_last, toner_level_resolved,
+            resolution_type, replacement_confirmed_by_level,
+            TIMESTAMPDIFF(SECOND, opened_at, service_reported_at) AS duration_seconds
+        FROM printer_incidents
+        WHERE service_status = 'reported'
+          AND service_reported_at IS NOT NULL
+          AND {$serviceWhere}
+        ORDER BY service_reported_at DESC
+        LIMIT {$limit}";
+    $stmt = $pdo->prepare($serviceSql);
+    $stmt->execute($serviceParams);
     $events = array_merge($events, $stmt->fetchAll());
 
     usort($events, static function (array $a, array $b): int {

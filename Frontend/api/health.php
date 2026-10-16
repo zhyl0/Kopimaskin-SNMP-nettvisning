@@ -1,78 +1,53 @@
 <?php
-
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+require __DIR__ . '/bootstrap.php';
 
 try {
-    require __DIR__ . '/bootstrap.php';
+    $pdo = db();
+    $rules = load_error_rules();
 
-    $incidentCount = 0;
-    $activeErrorCount = 0;
+    $incidentCount = (int) scalar_query($pdo, 'SELECT COUNT(*) FROM printer_incidents');
+    $activeCount = (int) scalar_query($pdo, 'SELECT COUNT(*) FROM printer_active_errors');
+    $tonerCount = (int) scalar_query($pdo, "SELECT COUNT(*) FROM printer_incidents WHERE severity = 'toner'");
+    $paperCount = (int) scalar_query($pdo, "SELECT COUNT(*) FROM printer_incidents WHERE severity = 'paper'");
 
-    // Test database connection
-    $pdo->query('SELECT 1');
-
-    // Count logged incidents
-    try {
-        $stmt = $pdo->query(
-            'SELECT COUNT(*) FROM printer_incidents'
-        );
-
-        $incidentCount = (int) $stmt->fetchColumn();
-
-    } catch (Throwable $e) {
-        // Health endpoint should still work even if
-        // statistics cannot be retrieved.
-        $incidentCount = 0;
-    }
-
-    // Count currently active incidents
-    try {
-        $stmt = $pdo->query(
-            'SELECT COUNT(*) FROM printer_active_errors'
-        );
-
-        $activeErrorCount = (int) $stmt->fetchColumn();
-
-    } catch (Throwable $e) {
-        $activeErrorCount = 0;
-    }
-
-    echo json_encode(
-        [
-            'ok' => true,
-            'logger_version' => 3,
-            'database' => 'connected',
-            'rules' => is_file(
-                dirname(__DIR__) . '/error_rules.json'
-            )
-                ? 'available'
-                : 'missing',
-            'incidents' => $incidentCount,
-            'active_errors' => $activeErrorCount,
-            'server_time' => date(DATE_ATOM),
-            'timezone' => date_default_timezone_get(),
-        ],
-        JSON_PRETTY_PRINT
-        | JSON_UNESCAPED_SLASHES
-        | JSON_UNESCAPED_UNICODE
+    $serviceColumns = (int) scalar_query(
+        $pdo,
+        "SELECT COUNT(*)
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'printer_incidents'
+           AND COLUMN_NAME IN ('service_status','service_reported_at','service_note','service_reported_by')"
     );
 
+    $adminRateLimitTable = (int) scalar_query(
+        $pdo,
+        "SELECT COUNT(*)
+         FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'admin_login_attempts'"
+    );
+
+    json_response([
+        'ok' => true,
+        'logger_version' => 3,
+        'service_version' => 1,
+        'database' => 'connected',
+        'rules' => 'loaded',
+        'rule_groups' => array_values(array_intersect(['ignore','toner','paper','critical','warning'], array_keys($rules))),
+        'incidents' => $incidentCount,
+        'active_errors' => $activeCount,
+        'toner_incidents' => $tonerCount,
+        'paper_incidents' => $paperCount,
+        'service_tracking' => $serviceColumns === 4,
+        'admin_rate_limit' => $adminRateLimitTable === 1,
+        'server_time' => (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
+        'timezone' => date_default_timezone_get(),
+    ]);
 } catch (Throwable $e) {
-    http_response_code(500);
-
-    echo json_encode(
-        [
-            'ok' => false,
-            'logger_version' => 3,
-            'database' => 'error',
-            'error' => 'Health check failed',
-            'server_time' => date(DATE_ATOM),
-        ],
-        JSON_PRETTY_PRINT
-        | JSON_UNESCAPED_SLASHES
-        | JSON_UNESCAPED_UNICODE
-    );
+    error_log('health.php: ' . $e->getMessage());
+    fail_json('Health check feilet.', 500, [
+        'hint' => 'Kontroller api/config.php og at SQL-migreringene er kjørt.',
+    ]);
 }
