@@ -74,7 +74,7 @@ Backend/
     RicohReader.py
     requirements.txt
     Printers.pkl
-    credentials.json        <- skal ikke på GitHub
+    credentials.json
 
 Frontend/
     index.html
@@ -168,7 +168,6 @@ Eksempel:
 }
 ```
 
-Ikke legg en produksjons-`Printers.pkl` med interne adresser/serienumre offentlig på GitHub.
 
 ---
 
@@ -331,7 +330,6 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 Samme nøkkel skal brukes i backendens `credentials.json`.
 
-**`api/config.php` skal ikke legges på GitHub.**
 
 ---
 
@@ -360,7 +358,6 @@ Feltene betyr:
 - `logger_url`: full HTTPS-adresse til `process-printers.php`.
 - `logger_key`: samme hemmelige nøkkel som i `api/config.php`.
 
-**`credentials.json` skal ikke legges på GitHub.**
 
 ---
 
