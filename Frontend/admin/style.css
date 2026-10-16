@@ -1,0 +1,72 @@
+:root {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #d1d5db;
+  --accent: #e11d48;
+  --warning: #facc15;
+  --critical: #ef4444;
+  --ok: #10b981;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+.admin-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.admin-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
+.admin-header h1 { margin: 0 0 5px; }
+.admin-header p { margin: 0; color: var(--muted); }
+.login-card, .incident-card, .admin-intro, .empty-state {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.login-card { max-width: 460px; margin: 70px auto; }
+label { display: block; font-weight: 650; margin: 12px 0; }
+label small { color: var(--muted); font-weight: 400; }
+input, textarea {
+  width: 100%; margin-top: 6px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text); background: #fff;
+}
+textarea { resize: vertical; }
+button {
+  border: 0; border-radius: 8px; padding: 9px 13px; background: var(--accent); color: white; font: inherit; font-weight: 700; cursor: pointer;
+}
+button:hover { filter: brightness(.95); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.secondary-button { background: #374151; }
+.danger-button { background: #991b1b; }
+.logout-form { margin: 0; }
+.flash { padding: 11px 14px; border-radius: 8px; margin-bottom: 16px; font-weight: 650; }
+.flash-ok { background: #d1fae5; border: 1px solid #10b981; }
+.flash-error, .blocked-message { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 10px; border-radius: 8px; }
+.admin-intro { margin-bottom: 14px; }
+.incident-list { display: grid; gap: 14px; }
+.incident-card { position: relative; overflow: hidden; }
+.incident-card.reported { border: 2px solid #d4a900; padding-top: 36px; }
+.incident-card.reported::before {
+  content: "SERVICE     SERVICE     SERVICE     SERVICE";
+  position: absolute; top: 0; left: 0; right: 0; height: 24px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden;
+  background: repeating-linear-gradient(135deg,#facc15 0,#facc15 22px,#111827 22px,#111827 30px,#facc15 30px,#facc15 52px);
+  color: #111827; font-size: .7rem; font-weight: 900; letter-spacing: .12em; text-shadow: -1px -1px 0 #facc15,1px -1px 0 #facc15,-1px 1px 0 #facc15,1px 1px 0 #facc15;
+}
+.incident-heading { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+.incident-heading h2 { margin: 8px 0 0; font-size: 1.25rem; }
+.incident-heading h2 small { color: var(--muted); font-weight: 500; }
+.incident-id { color: var(--muted); font-family: ui-monospace, monospace; }
+.severity, .service-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+.severity-critical { background: #fee2e2; color: #991b1b; }
+.severity-warning { background: #fef3c7; color: #92400e; }
+.severity-other { background: #e5e7eb; color: #374151; }
+.service-pill { background: var(--warning); color: #111827; margin-left: 5px; text-transform: none; }
+.error-message { font-size: 1.05rem; font-weight: 650; }
+.error-message code { font-weight: 500; }
+.incident-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: .9rem; border-top: 1px solid #e5e7eb; padding-top: 9px; }
+.service-form { margin-top: 10px; }
+.button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 650px) {
+  .admin-shell { padding: 12px; }
+  .admin-header { flex-direction: column; }
+  .incident-heading { flex-direction: column; }
+}
