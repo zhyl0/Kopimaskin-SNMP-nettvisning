@@ -1,0 +1,294 @@
+# Oppgradering til Admin + service-markering
+
+Denne guiden gjelder en eksisterende installasjon som allerede har:
+
+- Python/SNMP-backend
+- `printer_data.json`
+- PHP/MariaDB-historikk
+- statistikk / `?stats=1`
+
+men **ikke** admin-side og service-markering.
+
+Har du ingen historikkdatabase fra før, bruk hoved-`README.md` og installer fra bunnen av.
+
+---
+
+## 1. Ta backup
+
+Før du begynner:
+
+- stopp gjerne Python-backend midlertidig
+- eksporter MariaDB-databasen
+- ta kopi av frontendmappen
+- ta vare på:
+  - `api/config.php`
+  - `credentials.json`
+  - `Printers.pkl`
+
+Du skal **ikke** overskrive `api/config.php`.
+
+---
+
+## 2. Kontroller databaseversjonen
+
+Service/admin forventer den nyere historikkstrukturen med:
+
+```text
+severity:
+critical
+warning
+toner
+paper
+other
+```
+
+og blant annet disse kolonnene:
+
+```text
+consumable_color
+paper_tray
+missing_since
+resolution_type
+```
+
+Hvis installasjonen din er fra den eldre v2-historikkloggeren, kjør først v2 -> v3-migreringen som følger med releasen.
+
+Hvis du allerede bruker logger v3 og har toner/papir-statistikk, går du videre.
+
+---
+
+## 3. Kjør service/admin-migreringen
+
+Kjør én gang i samme MariaDB-database:
+
+```sql
+ALTER TABLE printer_incidents
+    ADD COLUMN service_status ENUM('none','reported') NOT NULL DEFAULT 'none',
+    ADD COLUMN service_reported_at DATETIME NULL,
+    ADD COLUMN service_note VARCHAR(500) NULL,
+    ADD COLUMN service_reported_by VARCHAR(100) NULL,
+    ADD INDEX idx_service_active (service_status, resolved_at);
+
+CREATE TABLE admin_login_attempts (
+    ip_hash CHAR(64) NOT NULL PRIMARY KEY,
+    failure_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    first_failed_at DATETIME NULL,
+    last_failed_at DATETIME NULL,
+    blocked_until DATETIME NULL
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+```
+
+Eksisterende incidents og historikk beholdes.
+
+---
+
+## 4. Oppdater API-filene
+
+Last opp/erstatt:
+
+```text
+api/stats.php
+api/events.php
+api/health.php
+```
+
+Legg til:
+
+```text
+api/service-status.php
+```
+
+Behold din eksisterende:
+
+```text
+api/config.php
+api/bootstrap.php
+api/process-printers.php
+```
+
+med mindre releasen spesifikt sier at disse også er oppdatert.
+
+---
+
+## 5. Oppdater frontend
+
+Erstatt:
+
+```text
+script.js
+stats.js
+style.css
+stylemob.css
+```
+
+Service-stylingen er lagt til oppå eksisterende utseende.
+
+`index.html` trenger normalt ingen endring for servicefunksjonen.
+
+---
+
+## 6. Last opp admin-mappen
+
+Last hele:
+
+```text
+admin/
+```
+
+til webområdet, f.eks.:
+
+```text
+/www/printstatus/admin/
+```
+
+Den skal typisk inneholde:
+
+```text
+admin/index.php
+admin/auth.php
+admin/style.css
+admin/config.example.php
+```
+
+---
+
+## 7. Lag admin/config.php
+
+Bruk `tools/password-generator.html`.
+
+Velg:
+
+- admin-brukernavn
+- et langt, unikt passord
+
+Generatoren lager salt og hash lokalt.
+
+Lagre resultatet som:
+
+```text
+admin/config.php
+```
+
+på webserveren.
+
+Ikke commit denne filen til GitHub.
+
+---
+
+## 8. Test health.php
+
+Åpne:
+
+```text
+https://DIN-SIDE/api/health.php
+```
+
+Du bør få:
+
+```json
+{
+  "ok": true,
+  "logger_version": 3,
+  "service_version": 1,
+  "service_tracking": true,
+  "admin_rate_limit": true
+}
+```
+
+---
+
+## 9. Test admin
+
+Åpne:
+
+```text
+https://DIN-SIDE/admin/
+```
+
+Logg inn.
+
+Aktive tekniske incidents skal vises.
+
+Du kan:
+
+- merke hendelsen som `Meldt til service`
+- legge til et offentlig notat
+- endre notatet
+- fjerne markeringen dersom du valgte feil hendelse
+
+---
+
+## 10. Test frontend
+
+Merk én aktiv hendelse som meldt til service.
+
+Innen omtrent 30 sekunder skal printerkortet vise:
+
+```text
+SERVICE
+🔧 Meldt til service – avventer service
+```
+
+både i vanlig og kompakt visning.
+
+Ingen restart av Raspberry Pi/backend er nødvendig bare fordi PHP/frontend/admin ble oppdatert.
+
+---
+
+# Hvis admin viser 0 aktive hendelser
+
+Livevisning og admin bruker ikke samme kilde:
+
+```text
+live-side -> printer_data.json
+admin     -> MariaDB
+```
+
+En feil som allerede eksisterte før klassifiseringsreglene ble oppdatert kan derfor ligge med gammel severity i databasen.
+
+Kontroller:
+
+```sql
+SELECT
+    id,
+    printer_name,
+    severity,
+    error_code,
+    error_message,
+    opened_at,
+    resolved_at,
+    service_status
+FROM printer_incidents
+WHERE resolved_at IS NULL
+ORDER BY opened_at DESC;
+```
+
+Hvis en åpenbar teknisk/kritisk hendelse feilaktig står som `toner`, `paper` eller annen kategori, rett den aktuelle incidenten før du bruker admin.
+
+Eksempel:
+
+```sql
+UPDATE printer_incidents
+SET severity = 'critical'
+WHERE resolved_at IS NULL
+  AND error_code = '40011';
+```
+
+Bruk kun slik manuell SQL når du har kontrollert at hendelsen faktisk skal være kritisk.
+
+---
+
+# Etter oppgraderingen
+
+Du trenger normalt ikke endre:
+
+- printerlisten
+- SFTP-oppsettet
+- logger-nøkkelen
+- backendens polling-intervall
+
+Historikken fortsetter i samme database.
+
+Når en service-merket hendelse senere forsvinner fra SNMP, blir den løst av den eksisterende loggeren på vanlig måte, mens tidspunkt/notat om service beholdes på historikkposten.
