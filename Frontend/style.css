@@ -1438,3 +1438,113 @@ body.dark-mode .toner-section,
 body.dark-mode .tray-section {
   color: var(--text-color);
 }
+
+
+/* ==============================================================================
+   SERVICE-MARKERING
+   Kun tillegg for maskiner som er meldt til ekstern service.
+   ============================================================================== */
+.printer.service-reported {
+  position: relative;
+  padding-top: calc(2vh + 28px);
+  padding-bottom: calc(2vh + 28px);
+  border: 2px solid #eab308;
+}
+
+.printer.service-reported::before,
+.printer.service-reported::after {
+  content: "SERVICE     SERVICE     SERVICE     SERVICE";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 5;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(
+    135deg,
+    #facc15 0,
+    #facc15 22px,
+    #111827 22px,
+    #111827 30px,
+    #facc15 30px,
+    #facc15 52px
+  );
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-shadow:
+    -1px -1px 0 #facc15,
+     1px -1px 0 #facc15,
+    -1px  1px 0 #facc15,
+     1px  1px 0 #facc15;
+  pointer-events: none;
+}
+
+.printer.service-reported::before {
+  top: 0;
+  border-radius: 6px 6px 0 0;
+}
+
+.printer.service-reported::after {
+  bottom: 0;
+  border-radius: 0 0 6px 6px;
+}
+
+.service-status-card {
+  margin: 0.35rem 0 0.8rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #d4a900;
+  border-radius: 7px;
+  background: rgba(250, 204, 21, 0.16);
+  color: var(--text-color);
+  line-height: 1.3;
+}
+
+.service-status-title {
+  font-weight: 800;
+  color: #9a6700;
+}
+
+body.dark-mode .service-status-title {
+  color: #fde047;
+}
+
+.service-status-meta,
+.service-status-note {
+  margin-top: 0.2rem;
+  font-size: 0.84rem;
+}
+
+.service-status-meta {
+  opacity: 0.72;
+}
+
+.service-status-note {
+  font-weight: 600;
+}
+
+.service-summary-badge,
+.service-badge {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.15rem 0.48rem;
+  border: 1px solid #d4a900;
+  border-radius: 999px;
+  background: #facc15;
+  color: #111827;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.active-incident-item.service-reported-incident {
+  border-color: #d4a900;
+  box-shadow: inset 4px 0 0 #facc15;
+}

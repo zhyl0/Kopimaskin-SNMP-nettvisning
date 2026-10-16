@@ -93,6 +93,117 @@ document.addEventListener("DOMContentLoaded", function () {
     return mentionsToner && indicatesLowLevel;
   };
 
+  /* --- Service-status fra MariaDB --- */
+  const SERVICE_STATUS_CACHE_MS = 30000;
+  let serviceStatusCache = new Map();
+  let serviceStatusCacheAt = 0;
+
+  const escapeServiceHtml = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+  const serviceExactKey = (name, model) =>
+    `${String(name || "").trim()}|||${String(model || "").trim()}`;
+
+  const serviceNameKey = (name) =>
+    `name:${String(name || "").trim()}`;
+
+  const loadServiceStatuses = async (force = false) => {
+    const now = Date.now();
+
+    if (
+      !force &&
+      serviceStatusCacheAt > 0 &&
+      now - serviceStatusCacheAt < SERVICE_STATUS_CACHE_MS
+    ) {
+      return serviceStatusCache;
+    }
+
+    try {
+      const response = await fetch("api/service-status.php", {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const nextCache = new Map();
+
+      (payload.printers || []).forEach((item) => {
+        nextCache.set(
+          serviceExactKey(item.printer_name, item.printer_model),
+          item
+        );
+
+        // Printer-navnene i dette oppsettet er unike. Navn brukes som
+        // fallback dersom modellteksten i et senere SNMP-snapshot varierer.
+        nextCache.set(
+          serviceNameKey(item.printer_name),
+          item
+        );
+      });
+
+      serviceStatusCache = nextCache;
+      serviceStatusCacheAt = now;
+      return serviceStatusCache;
+
+    } catch (error) {
+      console.warn("Kunne ikke hente service-status:", error);
+      return serviceStatusCache;
+    }
+  };
+
+  const getServiceStatusForPrinter = (printer, statuses) =>
+    statuses.get(serviceExactKey(printer.Name, printer.Model)) ||
+    statuses.get(serviceNameKey(printer.Name)) ||
+    null;
+
+  const formatServiceDateTime = (value) => {
+    if (!value) return "";
+
+    const date = new Date(String(value).replace(" ", "T"));
+    if (Number.isNaN(date.getTime())) return String(value);
+
+    return new Intl.DateTimeFormat("nb-NO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(date);
+  };
+
+  const serviceStatusHtml = (serviceInfo) => {
+    if (!serviceInfo) return "";
+
+    const note = String(serviceInfo.service_note || "").trim();
+    const reportedAt = formatServiceDateTime(serviceInfo.service_reported_at);
+
+    return `
+      <div class="service-status-card" role="status">
+        <div class="service-status-title">🔧 Meldt til service – avventer service</div>
+        ${reportedAt ? `<div class="service-status-meta">Meldt ${escapeServiceHtml(reportedAt)}</div>` : ""}
+        ${note ? `<div class="service-status-note">${escapeServiceHtml(note)}</div>` : ""}
+      </div>
+    `;
+  };
+
+  const serviceSummaryHtml = (serviceInfo) => {
+    if (!serviceInfo) return "";
+
+    const note = String(serviceInfo.service_note || "").trim();
+    const title = note
+      ? `Meldt til service – ${note}`
+      : "Meldt til service – avventer service";
+
+    return `<span class="service-summary-badge" title="${escapeServiceHtml(title)}">🔧 Meldt til service</span>`;
+  };
+
   /* --- Installer nettsiden som app / PWA --- */
   const installAppButton = document.getElementById("installAppButton");
   let deferredInstallPrompt = null;
@@ -1052,21 +1163,21 @@ document.addEventListener("DOMContentLoaded", function () {
       searchBox.value
         .toLowerCase();
 
-    fetch(
-      "printer_data.json",
-      {
-        headers: {
-          "Content-Type":
-            "application/json; charset=UTF-8"
+    Promise.all([
+      fetch(
+        "printer_data.json",
+        {
+          headers: {
+            "Content-Type":
+              "application/json; charset=UTF-8"
+          },
+          cache: "no-store"
         }
-      }
-    )
+      ).then(response => response.json()),
+      loadServiceStatuses()
+    ])
       .then(
-        response =>
-          response.json()
-      )
-      .then(
-        printerData => {
+        ([printerData, serviceStatuses]) => {
           processCriticalNotifications(
             printerData
           );
@@ -1125,6 +1236,15 @@ document.addEventListener("DOMContentLoaded", function () {
                     !shouldIgnoreConsumableWarning(error)
                 );
 
+              const serviceInfo =
+                getServiceStatusForPrinter(
+                  printer,
+                  serviceStatuses
+                );
+
+              const hasServiceReport =
+                Boolean(serviceInfo);
+
               const hasWarning =
                 visibleErrors.some(
                   error =>
@@ -1144,6 +1264,7 @@ document.addEventListener("DOMContentLoaded", function () {
               if (
                 !hasCriticalError &&
                 !hasWarning &&
+                !hasServiceReport &&
                 !showAllPrinters
               ) {
                 return;
@@ -1156,6 +1277,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
               printerDiv.className =
                 "printer";
+
+              if (hasServiceReport) {
+                printerDiv.classList.add(
+                  "service-reported"
+                );
+              }
 
               if (
                 expandedPrinters.has(
@@ -1328,6 +1455,8 @@ document.addEventListener("DOMContentLoaded", function () {
                   ${printer.Name}
                   (${printer.Model})
                 </h2>
+
+                ${serviceStatusHtml(serviceInfo)}
 
                 <div class="details">
                   <div class="printer-info">
@@ -1543,11 +1672,23 @@ document.addEventListener("DOMContentLoaded", function () {
             scrollPosition
           );
 
+          const hasVisibleServiceReport =
+            printerData.some(
+              printer =>
+                Boolean(
+                  getServiceStatusForPrinter(
+                    printer,
+                    serviceStatuses
+                  )
+                )
+            );
+
           if (
             printersWithCriticalError
               .length === 0 &&
             printersWithWarning
               .length === 0 &&
+            !hasVisibleServiceReport &&
             !showAllPrinters
           ) {
             noErrorsMessage.style.display =
@@ -1622,7 +1763,8 @@ document.addEventListener("DOMContentLoaded", function () {
             !isMobile()
           ) {
             generatePrinterSummary(
-              printerData
+              printerData,
+              serviceStatuses
             );
 
           } else {
@@ -1638,7 +1780,8 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   const generatePrinterSummary = (
-    printerData
+    printerData,
+    serviceStatuses = new Map()
   ) => {
     summaryContainer.innerHTML =
       "";
@@ -1656,6 +1799,12 @@ document.addEventListener("DOMContentLoaded", function () {
           printer.Errors.filter(
             error =>
               !shouldIgnoreConsumableWarning(error)
+          );
+
+        const serviceInfo =
+          getServiceStatusForPrinter(
+            printer,
+            serviceStatuses
           );
 
         const uniqueErrors =
@@ -1720,7 +1869,9 @@ document.addEventListener("DOMContentLoaded", function () {
           criticalPrinters.push({
             ...printer,
             SummaryErrors:
-              uniqueErrors
+              uniqueErrors,
+            ServiceInfo:
+              serviceInfo
           });
 
         } else if (
@@ -1729,7 +1880,9 @@ document.addEventListener("DOMContentLoaded", function () {
           warningPrinters.push({
             ...printer,
             SummaryErrors:
-              uniqueErrors
+              uniqueErrors,
+            ServiceInfo:
+              serviceInfo
           });
         }
       }
@@ -1792,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         <span class="critical-error">
                           ${errors.join(", ")}
                         </span>
+                        ${serviceSummaryHtml(printer.ServiceInfo)}
                       </li>
                     `;
                   }
@@ -1855,6 +2009,7 @@ document.addEventListener("DOMContentLoaded", function () {
                           <span class="warning-error">
                             ${errors.join(", ")}
                           </span>
+                          ${serviceSummaryHtml(printer.ServiceInfo)}
                         </li>
                       `;
                     }

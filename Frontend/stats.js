@@ -117,6 +117,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const severityPill = (severity) =>
     `<span class="severity-pill severity-${escapeHtml(severity)}">${severityLabel(severity)}</span>`;
 
+  const serviceBadge = (row) => {
+    if (!row || row.service_status !== "reported") return "";
+    const note = String(row.service_note || "").trim();
+    const title = note
+      ? `Meldt til service – ${note}`
+      : "Meldt til service – avventer service";
+    return `<span class="service-badge" title="${escapeHtml(title)}">🔧 Meldt til service</span>`;
+  };
+
   const renderPrinterLeaderboard = (rows) => {
     if (!rows?.length) {
       printerLeaderboard.innerHTML = '<tr><td colspan="6" class="empty-state">Ingen tekniske feil i perioden.</td></tr>';
@@ -203,10 +212,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     activeIncidentList.innerHTML = rows.map(row => `
-      <div class="active-incident-item">
+      <div class="active-incident-item${row.service_status === "reported" ? " service-reported-incident" : ""}">
         ${severityPill(row.severity)}
         <strong>${escapeHtml(row.printer_name)}</strong> – ${escapeHtml(row.error_message)}${row.error_code ? ` {${escapeHtml(row.error_code)}}` : ""}
-        <span class="meta">Startet ${formatDateTime(row.opened_at)} · aktiv i ${formatDuration(row.duration_seconds)}</span>
+        ${serviceBadge(row)}
+        <span class="meta">Startet ${formatDateTime(row.opened_at)} · aktiv i ${formatDuration(row.duration_seconds)}${row.service_status === "reported" && row.service_reported_at ? ` · meldt service ${formatDateTime(row.service_reported_at)}` : ""}</span>
       </div>
     `).join("");
   };
@@ -245,11 +255,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     eventLog.innerHTML = events.map(event => {
       const isResolved = event.event_type === "resolved";
+      const isServiceReported = event.event_type === "service_reported";
       let icon = "🔵";
       let action = isResolved ? "Løst" : "Oppstod";
       let message = `${escapeHtml(event.error_message)}${event.error_code ? ` {${escapeHtml(event.error_code)}}` : ""}`;
 
-      if (event.severity === "critical") icon = isResolved ? "✅" : "🔴";
+      if (isServiceReported) {
+        icon = "🔧";
+        action = "Meldt til service";
+        if (event.service_note) {
+          message += ` · ${escapeHtml(event.service_note)}`;
+        }
+      } else if (event.severity === "critical") icon = isResolved ? "✅" : "🔴";
       else if (event.severity === "warning") icon = isResolved ? "✅" : "🟠";
       else if (event.severity === "toner") {
         icon = isResolved ? "✅" : "🖨";
@@ -284,8 +301,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="event-message">
             ${severityPill(event.severity)}
             ${action}: ${message}
+            ${isServiceReported ? "" : serviceBadge(event)}
           </div>
-          <div class="event-duration">${isResolved ? formatDuration(event.duration_seconds) : ""}</div>
+          <div class="event-duration">${isResolved ? formatDuration(event.duration_seconds) : (isServiceReported && event.duration_seconds !== null ? `etter ${formatDuration(event.duration_seconds)}` : "")}</div>
         </div>
       `;
     }).join("");

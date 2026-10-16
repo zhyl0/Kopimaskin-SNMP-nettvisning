@@ -225,7 +225,7 @@ header h1 {
   }
 
   #headerIcon {
-    content: url('images/logo.png');
+    content: url('images/agderfk.png');
   }
 }
 
@@ -291,4 +291,37 @@ header {
 
 .printer-container {
   padding: 1vh;
+}
+
+/* --- Service-markering på kompakte og utvidede mobilkort --- */
+.printer.service-reported {
+  position: relative;
+  padding-top: calc(1vh + 26px);
+  padding-bottom: calc(1vh + 26px);
+  border: 2px solid #eab308;
+  overflow: hidden;
+}
+
+.printer.service-reported::before,
+.printer.service-reported::after {
+  height: 22px;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+}
+
+.service-status-card {
+  margin: 0.3rem 0 0.45rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.printer:not(.expanded) .service-status-meta,
+.printer:not(.expanded) .service-status-note {
+  display: none;
+}
+
+.printer:not(.expanded) .service-status-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
