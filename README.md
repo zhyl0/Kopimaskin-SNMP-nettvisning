@@ -20,7 +20,7 @@ Prosjektet består av en Python-backend som henter status direkte fra kopimaskin
 - Dark mode, PWA/installasjon som app og egne URL-flagg.
 
 
-![Visning av service feil](https://moglestu.com/printstatus_images/service_status.png)
+![Visning av service feil](https://moglestu.com/printstatus_images/service_status_1.png)
 
 ![Visning av service feil](https://moglestu.com/printstatus_images/admin_service.png)
 
