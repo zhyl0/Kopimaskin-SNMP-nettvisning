@@ -565,7 +565,7 @@ Når feilen forsvinner via SNMP blir incidenten løst på vanlig måte, mens ser
 
 ## Opprett admin/config.php
 
-Bruk `tools/password-generator.html` fra service/admin-pakken eller releasen.
+Bruk `tools/password-generator.html` [eller direkte her - zhyl0.github.io/password-generator]([https://link-url-here.org](https://zhyl0.github.io/password-generator.html).
 
 Generatoren lager et oppsett med:
 
